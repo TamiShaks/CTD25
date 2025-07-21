@@ -11,6 +11,7 @@ import sys
 from typing import List, Tuple, Optional
 import pygame
 import time
+import os
 
 # Add the It1_interfaces directory to the path
 current_dir = pathlib.Path(__file__).parent
@@ -116,43 +117,42 @@ class EnhancedKungFuChess:
             print(f"❌ Error creating board: {e}")
             return None
 
-    def create_initial_pieces(self) -> List[Piece]:
-        """Create initial chess pieces."""
+    def create_initial_pieces(self) -> List[dict]:
+        """Create initial chess pieces from pieces folder."""
         pieces = []
-        
         try:
-            # Create a simple starting setup - just a few pieces for testing
-            test_pieces = [
-                ("PW", (6, 0), "♙"),  # White pawn
-                ("PW", (6, 1), "♙"),  # White pawn
-                ("PW", (6, 6), "♙"),  # White pawn
-                ("PW", (6, 7), "♙"),  # White pawn
-                ("PB", (1, 0), "♟"),  # Black pawn
-                ("PB", (1, 1), "♟"),  # Black pawn
-                ("PB", (1, 6), "♟"),  # Black pawn
-                ("PB", (1, 7), "♟"),  # Black pawn
-            ]
-            
-            for piece_type, pos, symbol in test_pieces:
-                try:
-                    # Create a simple piece representation
+            for name in os.listdir(self.pieces_dir):
+                if name.startswith("PW"):
+                    # מוסיף חייל לבן בשורה 6, עמודה לפי אינדקס
+                    col = int(name[2:]) if name[2:].isdigit() else 0
                     piece = {
-                        'type': piece_type,
-                        'pos': list(pos),
-                        'symbol': symbol,
+                        'type': name,
+                        'pos': [6, col],
+                        'symbol': "♙",
                         'state': 'idle',
-                        'rest_until': 0,  # When the piece can move again
-                        'color': 'white' if 'W' in piece_type else 'black'
+                        'rest_until': 0,
+                        'color': 'white'
                     }
                     pieces.append(piece)
-                except Exception as e:
-                    print(f"❌ Failed to create piece {piece_type}: {e}")
-                    
+                elif name.startswith("PB"):
+                    # מוסיף חייל שחור בשורה 1, עמודה לפי אינדקס
+                    col = int(name[2:]) if name[2:].isdigit() else 0
+                    piece = {
+                        'type': name,
+                        'pos': [1, col],
+                        'symbol': "♟",
+                        'state': 'idle',
+                        'rest_until': 0,
+                        'color': 'black'
+                    }
+                    pieces.append(piece)
         except Exception as e:
             print(f"❌ Error in piece creation: {e}")
-        
-        print(f"✅ Created {len(pieces)} pieces")
+
+        print(f"✅ Created {len(pieces)} pieces from folder")
         return pieces
+
+    
 
     def draw_board(self):
         """Draw the chess board."""
