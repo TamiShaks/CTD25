@@ -1,103 +1,11 @@
-# import inspect
-# import pathlib
-# import queue, threading, time, cv2, math
-# from typing import List, Dict, Tuple, Optional
-# from Board   import Board
-# from Bus.bus import EventBus, Event
-# from Command import Command
-# from Piece   import Piece
-# from img     import Img
-
-
-# class InvalidBoard(Exception): ...
-# # ────────────────────────────────────────────────────────────────────
-# class Game:
-#     def __init__(self, pieces: List[Piece], board: Board):
-#         """Initialize the game with pieces, board, and optional event bus."""
-#         pass
-
-#     # ─── helpers ─────────────────────────────────────────────────────────────
-#     def game_time_ms(self) -> int:
-#         """Return the current game time in milliseconds."""
-#         pass
-
-#     def clone_board(self) -> Board:
-#         """
-#         Return a **brand-new** Board wrapping a copy of the background pixels
-#         so we can paint sprites without touching the pristine board.
-#         """
-#         pass
-
-#     def start_user_input_thread(self):
-#         """Start the user input thread for mouse handling."""
-#         pass
-
-#     # ─── main public entrypoint ──────────────────────────────────────────────
-#     def run(self):
-#         """Main game loop."""
-#         self.start_user_input_thread() # QWe2e5
-
-#         start_ms = self.game_time_ms()
-#         for p in self.pieces:
-#             p.reset(start_ms)
-
-#         # ─────── main loop ──────────────────────────────────────────────────
-#         while not self._is_win():
-#             now = self.game_time_ms() # monotonic time ! not computer time.
-
-#             # (1) update physics & animations
-#             for p in self.pieces:
-#                 p.update(now)
-
-#             # (2) handle queued Commands from mouse thread
-#             while not self.user_input_queue.empty(): # QWe2e5
-#                 cmd: Command = self.user_input_queue.get()
-#                 self._process_input(cmd)
-
-#             # (3) draw current position
-#             self._draw()
-#             if not self._show():           # returns False if user closed window
-#                 break
-
-#             # (4) detect captures
-#             self._resolve_collisions()
-
-#         self._announce_win()
-#         cv2.destroyAllWindows()
-
-#     # ─── drawing helpers ────────────────────────────────────────────────────
-#     def _draw(self):
-#         """Draw the current game state."""
-#         pass
-
-#     def _show(self) -> bool:
-#         """Show the current frame and handle window events."""
-#         pass
-
-#     # ─── capture resolution ────────────────────────────────────────────────
-#     def _resolve_collisions(self):
-#         """Resolve piece collisions and captures."""
-#         pass
-
-#     # ─── board validation & win detection ───────────────────────────────────
-#     def _is_win(self) -> bool:
-#         """Check if the game has ended."""
-#         pass
-
-#     def _announce_win(self):
-#         """Announce the winner."""
-#         pass
-
-
 import inspect
 import pathlib
 import queue, threading, time, cv2, math
 from typing import List, Dict, Tuple, Optional
-from Board   import Board
-from Bus.bus import EventBus, Event
+from Board import Board
 from Command import Command
-from Piece   import Piece
-from img     import Img
+from Piece import Piece
+from img import Img
 
 class InvalidBoard(Exception): 
     pass
@@ -107,19 +15,20 @@ class Game:
         """Initialize the game with pieces, board, and optional event bus."""
         self.pieces = pieces
         self.board = board
-        self.event_bus = EventBus()
+        self.start_time = time.time()
         self.user_input_queue = queue.Queue()
-        self.start_time = None
         
-        # Game state
-        self.running = True
-        self.winner = None
-
+        # Player selections - track selected cell for each player
+        self.player_a_selection = (0, 0)  # Player A (arrow keys) - red frame
+        self.player_b_selection = (0, 1)  # Player B (WASD) - blue frame
+        
+        # Find pieces by player (assuming piece IDs indicate ownership)
+        self.player_a_pieces = [p for p in pieces if 'A' in p.piece_id or 'W' in p.piece_id]
+        self.player_b_pieces = [p for p in pieces if 'B' in p.piece_id or 'B' in p.piece_id]
+        
     def game_time_ms(self) -> int:
         """Return the current game time in milliseconds."""
-        if self.start_time is None:
-            self.start_time = time.time() * 1000
-        return int(time.time() * 1000 - self.start_time)
+        return int((time.time() - self.start_time) * 1000)
 
     def clone_board(self) -> Board:
         """Return a brand-new Board wrapping a copy of the background pixels."""
@@ -127,38 +36,54 @@ class Game:
 
     def start_user_input_thread(self):
         """Start the user input thread for mouse handling."""
-        def mouse_callback(event, x, y, flags, param):
-            if event == cv2.EVENT_LBUTTONDOWN:
-                # Convert pixel to cell coordinates
-                row, col = self.board.pixel_to_cell(x, y)
-                
-                if self.board.is_valid_cell(row, col):
-                    # Find piece at this location
-                    clicked_piece = self._find_piece_at_cell(row, col)
+        def input_worker():
+            while True:
+                key = cv2.waitKey(1) & 0xFF
+                if key == 255:  # No key pressed
+                    continue
                     
-                    if clicked_piece:
-                        # Create move command (simple: move one cell right as example)
-                        target_cell = (row, min(col + 1, self.board.W_cells - 1))
-                        
-                        cmd = Command(
-                            timestamp=self.game_time_ms(),
-                            piece_id=clicked_piece.piece_id,
-                            type="Move",
-                            params=[(row, col), target_cell]
-                        )
-                        
-                        self.user_input_queue.put(cmd)
-        
-        cv2.namedWindow("Kung Fu Chess")
-        cv2.setMouseCallback("Kung Fu Chess", mouse_callback)
-
-    def _find_piece_at_cell(self, row: int, col: int) -> Optional[Piece]:
-        """Find a piece at the given cell coordinates."""
-        for piece in self.pieces:
-            piece_row, piece_col = piece.current_state.physics.current_cell
-            if piece_row == row and piece_col == col:
-                return piece
-        return None
+                now = self.game_time_ms()
+                cmd = None
+                
+                # Player A controls (Arrow keys)
+                if key == 82:  # Up arrow
+                    new_pos = (max(0, self.player_a_selection[0] - 1), self.player_a_selection[1])
+                    self.player_a_selection = new_pos
+                elif key == 84:  # Down arrow  
+                    new_pos = (min(self.board.H_cells - 1, self.player_a_selection[0] + 1), self.player_a_selection[1])
+                    self.player_a_selection = new_pos
+                elif key == 81:  # Left arrow
+                    new_pos = (self.player_a_selection[0], max(0, self.player_a_selection[1] - 1))
+                    self.player_a_selection = new_pos
+                elif key == 83:  # Right arrow
+                    new_pos = (self.player_a_selection[0], min(self.board.W_cells - 1, self.player_a_selection[1] + 1))
+                    self.player_a_selection = new_pos
+                elif key == 13:  # Enter - Player A move
+                    cmd = Command(now, "player_a", "Move", [self.player_a_selection])
+                    
+                # Player B controls (WASD)
+                elif key == ord('w') or key == ord('W'):
+                    new_pos = (max(0, self.player_b_selection[0] - 1), self.player_b_selection[1])
+                    self.player_b_selection = new_pos
+                elif key == ord('s') or key == ord('S'):
+                    new_pos = (min(self.board.H_cells - 1, self.player_b_selection[0] + 1), self.player_b_selection[1])
+                    self.player_b_selection = new_pos
+                elif key == ord('a') or key == ord('A'):
+                    new_pos = (self.player_b_selection[0], max(0, self.player_b_selection[1] - 1))
+                    self.player_b_selection = new_pos
+                elif key == ord('d') or key == ord('D'):
+                    new_pos = (self.player_b_selection[0], min(self.board.W_cells - 1, self.player_b_selection[1] + 1))
+                    self.player_b_selection = new_pos
+                elif key == ord(' '):  # Space - Player B move
+                    cmd = Command(now, "player_b", "Move", [self.player_b_selection])
+                elif key == 27:  # Escape
+                    break
+                    
+                if cmd:
+                    self.user_input_queue.put(cmd)
+                    
+        thread = threading.Thread(target=input_worker, daemon=True)
+        thread.start()
 
     def run(self):
         """Main game loop."""
@@ -169,14 +94,14 @@ class Game:
             p.reset(start_ms)
 
         # Main loop
-        while not self._is_win() and self.running:
+        while not self._is_win():
             now = self.game_time_ms()
 
             # (1) Update physics & animations
             for p in self.pieces:
                 p.update(now)
 
-            # (2) Handle queued Commands from mouse thread
+            # (2) Handle queued Commands from input thread
             while not self.user_input_queue.empty():
                 cmd: Command = self.user_input_queue.get()
                 self._process_input(cmd)
@@ -189,85 +114,107 @@ class Game:
             # (4) Detect captures
             self._resolve_collisions()
 
-            # Small delay to prevent excessive CPU usage
-            time.sleep(0.016)  # ~60 FPS
-
         self._announce_win()
         cv2.destroyAllWindows()
 
     def _process_input(self, cmd: Command):
-        """Process a user input command."""
-        for piece in self.pieces:
-            piece.on_command(cmd, cmd.timestamp)
+        """Process player input commands."""
+        if cmd.type == "Move":
+            target_cell = cmd.params[0]
+            
+            # Find the piece at the selected position
+            selected_piece = None
+            if cmd.piece_id == "player_a":
+                # Find Player A piece at their selection
+                current_pos = self.player_a_selection
+                for piece in self.player_a_pieces:
+                    piece_pos = self._get_piece_cell_position(piece)
+                    if piece_pos == current_pos:
+                        selected_piece = piece
+                        break
+            elif cmd.piece_id == "player_b":
+                # Find Player B piece at their selection  
+                current_pos = self.player_b_selection
+                for piece in self.player_b_pieces:
+                    piece_pos = self._get_piece_cell_position(piece)
+                    if piece_pos == current_pos:
+                        selected_piece = piece
+                        break
+            
+            if selected_piece:
+                # Validate and execute move
+                if self._is_valid_move(selected_piece, target_cell):
+                    selected_piece.on_command(cmd, self.game_time_ms())
+
+    def _get_piece_cell_position(self, piece: Piece) -> Tuple[int, int]:
+        """Get the current cell position of a piece."""
+        # This would depend on your Physics implementation
+        # For now, return a placeholder
+        return (0, 0)
+        
+    def _is_valid_move(self, piece: Piece, target_cell: Tuple[int, int]) -> bool:
+        """Check if a move is valid for the given piece."""
+        # Check if piece is in idle state (not in rest)
+        if not piece.current_state.can_transition(self.game_time_ms()):
+            return False
+            
+        # Check if move is legal according to piece's move set
+        current_pos = self._get_piece_cell_position(piece)
+        relative_move = (target_cell[0] - current_pos[0], target_cell[1] - current_pos[1])
+        
+        # This would check against the piece's Moves object
+        valid_moves = piece.current_state.moves.get_moves(current_pos[0], current_pos[1])
+        return target_cell in valid_moves
 
     def _draw(self):
         """Draw the current game state."""
-        # Start with a fresh board
-        current_board = self.clone_board()
+        # Clone board for drawing
+        display_board = self.clone_board()
         
         # Draw all pieces
+        now = self.game_time_ms()
         for piece in self.pieces:
-            piece.draw_on_board(current_board, self.game_time_ms())
+            piece.draw_on_board(display_board, now)
+            
+        # Draw selection frames
+        self._draw_selection_frame(display_board, self.player_a_selection, (0, 0, 255))  # Red for Player A
+        self._draw_selection_frame(display_board, self.player_b_selection, (255, 0, 0))  # Blue for Player B
         
-        # Store the rendered board
-        self.rendered_board = current_board
+        self.current_display = display_board
+
+    def _draw_selection_frame(self, board: Board, cell_pos: Tuple[int, int], color: Tuple[int, int, int]):
+        """Draw a selection frame around a cell."""
+        row, col = cell_pos
+        x = col * board.cell_W_pix
+        y = row * board.cell_H_pix
+        
+        # Draw frame rectangle
+        cv2.rectangle(board.img.img, 
+                     (x, y), 
+                     (x + board.cell_W_pix, y + board.cell_H_pix), 
+                     color, 3)
 
     def _show(self) -> bool:
         """Show the current frame and handle window events."""
-        if hasattr(self, 'rendered_board') and self.rendered_board.img.img is not None:
-            cv2.imshow("Kung Fu Chess", self.rendered_board.img.img)
-            
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('q') or key == 27:  # 'q' or ESC
-                return False
-                
-            # Check if window was closed
-            if cv2.getWindowProperty("Kung Fu Chess", cv2.WND_PROP_VISIBLE) < 1:
-                return False
-                
-            return True
-        return False
+        if hasattr(self, 'current_display'):
+            cv2.imshow("Kung Fu Chess", self.current_display.img.img)
+            return cv2.waitKey(1) & 0xFF != 27  # Return False if ESC pressed
+        return True
 
     def _resolve_collisions(self):
         """Resolve piece collisions and captures."""
-        pieces_to_remove = []
-        
-        for i, piece1 in enumerate(self.pieces):
-            for j, piece2 in enumerate(self.pieces):
-                if i >= j:
-                    continue
-                    
-                # Check if pieces are in the same cell
-                pos1 = piece1.current_state.physics.current_cell
-                pos2 = piece2.current_state.physics.current_cell
-                
-                if pos1 == pos2:
-                    # Collision detected!
-                    if piece1.current_state.physics.can_capture() and piece2.current_state.physics.can_be_captured():
-                        pieces_to_remove.append(piece2)
-                    elif piece2.current_state.physics.can_capture() and piece1.current_state.physics.can_be_captured():
-                        pieces_to_remove.append(piece1)
-        
-        # Remove captured pieces
-        for piece in pieces_to_remove:
-            if piece in self.pieces:
-                self.pieces.remove(piece)
+        # Implementation for capture logic
+        pass
 
     def _is_win(self) -> bool:
         """Check if the game has ended."""
-        # Simple win condition: only one piece type remains
-        if len(self.pieces) <= 1:
-            return True
-            
-        # Check if all remaining pieces are of the same type
-        piece_types = set()
-        for piece in self.pieces:
-            piece_type = piece.piece_id.split('_')[0]  # Extract type from ID
-            piece_types.add(piece_type)
-            
-        return len(piece_types) <= 1
+        # Check for win conditions (e.g., king captured)
+        return False
 
     def _announce_win(self):
+        """Announce the winner."""
+        print("Game Over!")
+
         """Announce the winner."""
         if len(self.pieces) == 0:
             print("Game ended - No pieces remaining!")

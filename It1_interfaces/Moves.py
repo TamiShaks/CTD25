@@ -1,18 +1,4 @@
-# # Moves.py  – drop-in replacement
-# import pathlib
-# from typing import List, Tuple
-
-# class Moves:
-   
-#     def __init__(self, txt_path: pathlib.Path, dims: Tuple[int, int]):
-#         """Initialize moves with rules from text file and board dimensions."""
-#         pass
-
-#     def get_moves(self, r: int, c: int) -> List[Tuple[int, int]]:
-#         """Get all possible moves from a given position."""
-#         pass
-
-# Moves.py – drop-in replacement
+# Moves.py – Updated to handle your actual file format
 import pathlib
 from typing import List, Tuple
 
@@ -26,12 +12,26 @@ class Moves:
             with open(txt_path, 'r') as f:
                 for line in f:
                     line = line.strip()
-                    if line and ',' in line:
+                    if not line or line.startswith('#'):  # Skip empty lines and comments
+                        continue
+                    
+                    # Handle different formats
+                    if ':' in line:
+                        # Format like "0:non_capture" or "1,1:capture"
+                        coords_part = line.split(':')[0].strip()
+                    else:
+                        # Simple format like "1,0"
+                        coords_part = line.strip()
+                    
+                    if ',' in coords_part:
                         try:
-                            dc, dr = map(int, line.split(','))
+                            dc, dr = map(int, coords_part.split(','))
                             self.move_deltas.append((dr, dc))
                         except ValueError:
+                            print(f"Warning: Could not parse move line: {line}")
                             continue
+                    else:
+                        print(f"Warning: Invalid move format: {line}")
 
     def get_moves(self, r: int, c: int) -> List[Tuple[int, int]]:
         """Get all possible moves from a given position."""

@@ -1,5 +1,5 @@
 # from dataclasses import dataclass
-
+# import copy
 # from img import Img
 
 # @dataclass
@@ -13,9 +13,23 @@
 #     # convenience, not required by dataclass
 #     def clone(self) -> "Board":
 #         """Clone the board with a copy of the image."""
-#         pass 
+#         new_img = Img()
+#         new_img.img = copy.deepcopy(self.img.img)
+#         return Board(
+#             self.cell_H_pix,
+#             self.cell_W_pix, 
+#             self.W_cells,
+#             self.H_cells,
+#             new_img
+#         )
+#         """Check if cell is within board boundaries."""
+#         return 0 <= row < self.H_cells and 0 <= col < self.W_cells
+
+#         """Check if cell coordinates are within board bounds."""
+#         return 0 <= row < self.H_cells and 0 <= col < self.W_cells
 
 from dataclasses import dataclass
+import copy
 from img import Img
 
 @dataclass
@@ -26,40 +40,22 @@ class Board:
     H_cells: int
     img: Img
 
+    # convenience, not required by dataclass
     def clone(self) -> "Board":
         """Clone the board with a copy of the image."""
         new_img = Img()
-        if self.img.img is not None:
-            new_img.img = self.img.img.copy()
-
+        new_img.img = copy.deepcopy(self.img.img)
         return Board(
-            cell_H_pix=self.cell_H_pix,
-            cell_W_pix=self.cell_W_pix,
-            W_cells=self.W_cells,
-            H_cells=self.H_cells,
-            img=new_img
+            self.cell_H_pix,
+            self.cell_W_pix, 
+            self.W_cells,
+            self.H_cells,
+            new_img
         )
-
+    
     def reset_board(self):
-        """Reset the board image (create a fresh copy)."""
-        if self.img.img is not None:
-            self.img.img = self.img.img.copy()
-
-    def cell_to_pixel(self, row: int, col: int) -> tuple[int, int]:
-        """Convert cell coordinates to pixel coordinates (top-left corner)."""
-        x = col * self.cell_W_pix
-        y = row * self.cell_H_pix
-        return x, y
-
-    def pixel_to_cell(self, x: int, y: int) -> tuple[int, int]:
-        """Convert pixel coordinates to cell coordinates."""
-        col = x // self.cell_W_pix
-        row = y // self.cell_H_pix
-        return row, col
-
-    def is_valid_cell(self, row: int, col: int) -> bool:
-        """Check if cell is within board boundaries."""
-        return 0 <= row < self.H_cells and 0 <= col < self.W_cells
-
-        """Check if cell coordinates are within board bounds."""
-        return 0 <= row < self.H_cells and 0 <= col < self.W_cells
+        """Reset the board to its original state (if needed)."""
+        # If you need to reset the board image to its original state,
+        # you might need to store the original image separately
+        pass
+    
