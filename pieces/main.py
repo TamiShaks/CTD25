@@ -7,6 +7,7 @@ from enum import Enum
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 
+
 # Initialize Pygame
 pygame.init()
 
@@ -26,7 +27,9 @@ RED_FRAME = (255, 0, 0)
 BLUE_FRAME = (0, 0, 255)
 GREEN = (0, 255, 0)
 YELLOW = (255, 255, 0)
+PURPLE = (128, 0, 128)
 FROZEN_OVERLAY = (0, 150, 255, 128)  # Semi-transparent blue
+SELECTED_OVERLAY = (255, 255, 0, 100)  # Semi-transparent yellow
 
 class PieceType(Enum):
     PAWN = "P"
@@ -168,6 +171,7 @@ class Player:
         self.selected_row = 0 if color == PieceColor.WHITE else 7
         self.selected_col = 4
         self.frame_color = RED_FRAME if color == PieceColor.WHITE else BLUE_FRAME
+        self.selected_piece_pos: Optional[Tuple[int, int]] = None  # Track selected piece
 
 class KungFuChess:
     def __init__(self):
@@ -371,8 +375,49 @@ class KungFuChess:
                             piece.current_frame = 0  # Reset animation
 
     def can_piece_act(self, piece: Piece) -> bool:
-        """Check if piece can perform actions"""
+        print(f"DEBUG: Piece at ({piece.row}, {piece.col}) state: {piece.state}")
         return piece.state == PieceState.IDLE
+
+    def handle_player_action(self, player: Player):
+        selected_piece = self.board[player.selected_row][player.selected_col]
+
+        if selected_piece and selected_piece.color == player.color:
+            if player.selected_piece_pos == (player.selected_row, player.selected_col):
+                self.jump_piece(player.selected_row, player.selected_col)
+                player.selected_piece_pos = None
+            else:
+                player.selected_piece_pos = (player.selected_row, player.selected_col)
+                print(f"DEBUG: Selected piece at {player.selected_piece_pos}")
+        else:
+            if player.selected_piece_pos:
+                from_row, from_col = player.selected_piece_pos
+                piece = self.board[from_row][from_col]
+
+                print(f"DEBUG: Attempting move from ({from_row},{from_col}) to ({player.selected_row},{player.selected_col})")
+                print(f"DEBUG: Piece = {piece}, Can act? {self.can_piece_act(piece)}")
+                print(f"DEBUG: Legal moves = {self.get_legal_moves(piece)}")
+
+                if piece and piece.color == player.color and self.can_piece_act(piece):
+                    legal_moves = self.get_legal_moves(piece)
+                    if (player.selected_row, player.selected_col) in legal_moves:
+                        if self.move_piece(from_row, from_col, player.selected_row, player.selected_col):
+                            print("DEBUG: Move successful!")
+                            player.selected_piece_pos = None
+                            return
+
+                print("DEBUG: Move failed. Deselecting.")
+                player.selected_piece_pos = None
+
+            else:
+                for row in range(8):
+                    for col in range(8):
+                        piece = self.board[row][col]
+                        if piece and piece.color == player.color and self.can_piece_act(piece):
+                            legal_moves = self.get_legal_moves(piece)
+                            if (player.selected_row, player.selected_col) in legal_moves:
+                                if self.move_piece(row, col, player.selected_row, player.selected_col):
+                                    print("DEBUG: Fallback move success")
+                                    return
 
     def move_piece(self, from_row: int, from_col: int, to_row: int, to_col: int) -> bool:
         """Move a piece from one position to another"""
@@ -452,25 +497,47 @@ class KungFuChess:
             if not keys[key]:
                 self.keys_pressed.discard(key)
 
-    def handle_player_action(self, player: Player):
-        """Handle when a player presses their action key"""
-        selected_piece = self.board[player.selected_row][player.selected_col]
+    # def handle_player_action(self, player: Player):
+    #     """Handle when a player presses their action key"""
+    #     selected_piece = self.board[player.selected_row][player.selected_col]
         
-        if selected_piece and selected_piece.color == player.color:
-            # If selecting own piece, try to jump it
-            self.jump_piece(player.selected_row, player.selected_col)
-        else:
-            # Try to move a piece to this position
-            # Find the player's piece that can move here
-            for row in range(8):
-                for col in range(8):
-                    piece = self.board[row][col]
-                    if (piece and piece.color == player.color and 
-                        self.can_piece_act(piece)):
-                        legal_moves = self.get_legal_moves(piece)
-                        if (player.selected_row, player.selected_col) in legal_moves:
-                            if self.move_piece(row, col, player.selected_row, player.selected_col):
-                                return
+    #     # If clicking on own piece
+    #     if selected_piece and selected_piece.color == player.color:
+    #         if player.selected_piece_pos == (player.selected_row, player.selected_col):
+    #             # Double-click on same piece = jump
+    #             self.jump_piece(player.selected_row, player.selected_col)
+    #             player.selected_piece_pos = None
+    #         else:
+    #             # Select this piece
+    #             player.selected_piece_pos = (player.selected_row, player.selected_col)
+    #     else:
+    #         # If we have a piece selected, try to move it here
+    #         if player.selected_piece_pos:
+    #             from_row, from_col = player.selected_piece_pos
+    #             piece = self.board[from_row][from_col]
+                
+    #             if (piece and piece.color == player.color and 
+    #                 self.can_piece_act(piece)):
+    #                 legal_moves = self.get_legal_moves(piece)
+    #                 if (player.selected_row, player.selected_col) in legal_moves:
+    #                     if self.move_piece(from_row, from_col, player.selected_row, player.selected_col):
+    #                         player.selected_piece_pos = None
+    #                         return
+                
+    #             # If move failed, deselect
+    #             player.selected_piece_pos = None
+    #         else:
+    #             # No piece selected, try to find a piece that can move here
+    #             # This is the fallback behavior for the old system
+    #             for row in range(8):
+    #                 for col in range(8):
+    #                     piece = self.board[row][col]
+    #                     if (piece and piece.color == player.color and 
+    #                         self.can_piece_act(piece)):
+    #                         legal_moves = self.get_legal_moves(piece)
+    #                         if (player.selected_row, player.selected_col) in legal_moves:
+    #                             if self.move_piece(row, col, player.selected_row, player.selected_col):
+    #                                 return
 
     def draw_board(self):
         """Draw the chess board"""
@@ -488,6 +555,13 @@ class KungFuChess:
                 if piece:
                     x = col * SQUARE_SIZE
                     y = row * SQUARE_SIZE
+                    
+                    # Draw selected piece highlight
+                    if ((self.player1.selected_piece_pos == (row, col)) or 
+                        (self.player2.selected_piece_pos == (row, col))):
+                        overlay = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE), pygame.SRCALPHA)
+                        overlay.fill(SELECTED_OVERLAY)
+                        self.screen.blit(overlay, (x, y))
                     
                     # Try to get sprite first
                     sprite = self.sprite_manager.get_sprite(piece)
@@ -526,6 +600,22 @@ class KungFuChess:
                         
                         self.screen.blit(overlay, (x, y))
 
+    def draw_legal_moves(self, player: Player):
+        """Draw legal moves for selected piece"""
+        if player.selected_piece_pos:
+            row, col = player.selected_piece_pos
+            piece = self.board[row][col]
+            if piece and self.can_piece_act(piece):
+                legal_moves = self.get_legal_moves(piece)
+                for move_row, move_col in legal_moves:
+                    x = move_col * SQUARE_SIZE
+                    y = move_row * SQUARE_SIZE
+                    
+                    # Draw a small circle to indicate legal move
+                    center = (x + SQUARE_SIZE // 2, y + SQUARE_SIZE // 2)
+                    pygame.draw.circle(self.screen, GREEN, center, 8)
+                    pygame.draw.circle(self.screen, WHITE, center, 6)
+
     def draw_selection_frames(self):
         """Draw selection frames for both players"""
         # Player 1 (Red frame)
@@ -547,8 +637,8 @@ class KungFuChess:
         # Instructions
         instructions = [
             "Player 1 (Red): Arrow Keys + Enter | Player 2 (Blue): WASD + Space",
-            "Enter/Space on own piece = Jump (1s rest) | Enter/Space on target = Move (2s rest)",
-            "Frozen overlay = piece cannot act (in rest state)"
+            "Select piece first, then target square to move | Double-click piece to jump",
+            "Yellow highlight = selected piece | Green dots = legal moves | Frozen overlay = resting"
         ]
         
         for i, instruction in enumerate(instructions):
@@ -560,6 +650,8 @@ class KungFuChess:
         self.screen.fill(WHITE)
         self.draw_board()
         self.draw_pieces()
+        self.draw_legal_moves(self.player1)
+        self.draw_legal_moves(self.player2)
         self.draw_selection_frames()
         self.draw_ui()
         pygame.display.flip()
@@ -570,7 +662,7 @@ class KungFuChess:
             current_time = time.time()
             dt = current_time - self.last_time
             self.last_time = current_time
-            
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
