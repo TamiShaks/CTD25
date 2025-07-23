@@ -497,48 +497,6 @@ class KungFuChess:
             if not keys[key]:
                 self.keys_pressed.discard(key)
 
-    # def handle_player_action(self, player: Player):
-    #     """Handle when a player presses their action key"""
-    #     selected_piece = self.board[player.selected_row][player.selected_col]
-        
-    #     # If clicking on own piece
-    #     if selected_piece and selected_piece.color == player.color:
-    #         if player.selected_piece_pos == (player.selected_row, player.selected_col):
-    #             # Double-click on same piece = jump
-    #             self.jump_piece(player.selected_row, player.selected_col)
-    #             player.selected_piece_pos = None
-    #         else:
-    #             # Select this piece
-    #             player.selected_piece_pos = (player.selected_row, player.selected_col)
-    #     else:
-    #         # If we have a piece selected, try to move it here
-    #         if player.selected_piece_pos:
-    #             from_row, from_col = player.selected_piece_pos
-    #             piece = self.board[from_row][from_col]
-                
-    #             if (piece and piece.color == player.color and 
-    #                 self.can_piece_act(piece)):
-    #                 legal_moves = self.get_legal_moves(piece)
-    #                 if (player.selected_row, player.selected_col) in legal_moves:
-    #                     if self.move_piece(from_row, from_col, player.selected_row, player.selected_col):
-    #                         player.selected_piece_pos = None
-    #                         return
-                
-    #             # If move failed, deselect
-    #             player.selected_piece_pos = None
-    #         else:
-    #             # No piece selected, try to find a piece that can move here
-    #             # This is the fallback behavior for the old system
-    #             for row in range(8):
-    #                 for col in range(8):
-    #                     piece = self.board[row][col]
-    #                     if (piece and piece.color == player.color and 
-    #                         self.can_piece_act(piece)):
-    #                         legal_moves = self.get_legal_moves(piece)
-    #                         if (player.selected_row, player.selected_col) in legal_moves:
-    #                             if self.move_piece(row, col, player.selected_row, player.selected_col):
-    #                                 return
-
     def draw_board(self):
         """Draw the chess board"""
         for row in range(8):

@@ -1,10 +1,10 @@
-from Command import Command
-from Moves import Moves
-from Graphics import Graphics  
-from Physics import Physics
+from .Command import Command
+from .Moves import Moves
+from .Graphics import Graphics  
+from .Physics import Physics
 from typing import Dict
 import time
-
+import copy
 class State:
     def __init__(self, moves: Moves, graphics: Graphics, physics: Physics):
         """Initialize state with moves, graphics, and physics components."""
@@ -18,7 +18,13 @@ class State:
         # State-specific properties
         self.is_rest_state = False
         self.rest_duration_ms = 0
-
+    def copy(self):
+        # יוצרים העתק רדוד - אם רוצים העתק עמוק יש להשתמש ב copy.deepcopy
+        return State(
+            self.moves,
+            self.graphics.copy(),  # כי גרפיקס יש לה מתודת copy
+            self.physics
+        )
     def set_transition(self, event: str, target: "State"):
         """Set a transition from this state to another state on an event."""
         self.transitions[event] = target

@@ -2,8 +2,8 @@ import pathlib
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional
 import copy
-from img import Img
-from Command import Command
+from .img import Img
+from .Command import Command
 
 class Graphics:
     def __init__(self, sprites_folder: pathlib.Path, cell_size: tuple[int, int], 

@@ -1,5 +1,5 @@
 from typing import Tuple, Optional
-from Command import Command
+from .Command import Command
 import math
 
 class Physics:

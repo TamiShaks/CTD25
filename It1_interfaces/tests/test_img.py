@@ -21,6 +21,7 @@ def test_img_copy_independent():
     copy_i1 = i1.copy()
     copy_i1.img[0, 0] = [0, 0, 0, 0]
     assert not np.array_equal(i1.img, copy_i1.img)
+    
 if __name__ == "__main__":
     test_img_read_missing_file_creates_default()
     test_img_copy_independent()

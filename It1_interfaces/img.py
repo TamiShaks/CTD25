@@ -60,38 +60,52 @@ class Img:
         return self
 
     def draw_on(self, target: "Img", x: int, y: int):
-        """Draw this image on another image at the specified position."""
+        """Draw this image on another image at the specified position with alpha blending."""
         if self.img is None or target.img is None:
-            return
-            
+         return
+        
         try:
-            src_h, src_w = self.img.shape[:2]
-            dst_h, dst_w = target.img.shape[:2]
-            
-            # Check bounds
-            if x >= dst_w or y >= dst_h or x + src_w <= 0 or y + src_h <= 0:
-                return
-            
-            # Calculate valid regions
-            src_x1 = max(0, -x)
-            src_y1 = max(0, -y)
-            src_x2 = min(src_w, dst_w - x)
-            src_y2 = min(src_h, dst_h - y)
-            
-            dst_x1 = max(0, x)
-            dst_y1 = max(0, y)
-            dst_x2 = dst_x1 + (src_x2 - src_x1)
-            dst_y2 = dst_y1 + (src_y2 - src_y1)
-            
-            if src_x2 <= src_x1 or src_y2 <= src_y1:
-                return
-            
-            # Simple copy (no alpha blending for now)
-            src_region = self.img[src_y1:src_y2, src_x1:src_x2]
-            target.img[dst_y1:dst_y2, dst_x1:dst_x2] = src_region
-            
+         src_h, src_w = self.img.shape[:2]
+         dst_h, dst_w = target.img.shape[:2]
+        
+        # Check bounds
+         if x >= dst_w or y >= dst_h or x + src_w <= 0 or y + src_h <= 0:
+            return
+        
+        # Calculate valid regions
+         src_x1 = max(0, -x)
+         src_y1 = max(0, -y)
+         src_x2 = min(src_w, dst_w - x)
+         src_y2 = min(src_h, dst_h - y)
+        
+         dst_x1 = max(0, x)
+         dst_y1 = max(0, y)
+         dst_x2 = dst_x1 + (src_x2 - src_x1)
+         dst_y2 = dst_y1 + (src_y2 - src_y1)
+        
+         if src_x2 <= src_x1 or src_y2 <= src_y1:
+            return
+        
+         src_region = self.img[src_y1:src_y2, src_x1:src_x2].astype(float)
+         dst_region = target.img[dst_y1:dst_y2, dst_x1:dst_x2].astype(float)
+        
+        # Extract alpha channel normalized [0..1]
+         alpha = src_region[:, :, 3] / 255.0
+         alpha = alpha[:, :, None]  # Make it broadcastable
+        
+         # Blend each color channel
+         for c in range(3):  # B, G, R channels
+            dst_region[:, :, c] = alpha[:, :, 0] * src_region[:, :, c] + (1 - alpha[:, :, 0]) * dst_region[:, :, c]
+        
+         # Set alpha to max between source and destination (optional)
+         dst_region[:, :, 3] = np.maximum(src_region[:, :, 3], dst_region[:, :, 3])
+        
+         # Write back to target (convert back to uint8)
+         target.img[dst_y1:dst_y2, dst_x1:dst_x2] = dst_region.astype(np.uint8)
+        
         except Exception as e:
-            print(f"Error drawing image: {e}")
+         print(f"Error drawing image with alpha blending: {e}")
+
 
     def copy(self) -> "Img":
         """Create a copy of this image."""

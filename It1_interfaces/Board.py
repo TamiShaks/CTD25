@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 import copy
-from img import Img
+from .img import Img
 
 @dataclass
 class Board:

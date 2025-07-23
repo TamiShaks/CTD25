@@ -27,12 +27,12 @@
 import pathlib
 from typing import Dict, Tuple
 import json
-from Board import Board
-from GraphicsFactory import GraphicsFactory
-from Moves import Moves
-from PhysicsFactory import PhysicsFactory
-from Piece import Piece
-from State import State
+from .Board import Board
+from .GraphicsFactory import GraphicsFactory
+from .Moves import Moves
+from .PhysicsFactory import PhysicsFactory
+from .Piece import Piece
+from .State import State
 
 class PieceFactory:
     def __init__(self, board: Board, pieces_root: pathlib.Path):
