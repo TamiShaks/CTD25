@@ -2,6 +2,7 @@ import pathlib
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional
 import copy
+import numpy as np
 from .img import Img
 from .Command import Command
 
@@ -56,6 +57,13 @@ class Graphics:
             self.current_frame = frame_index % len(self.frames)
         else:
             self.current_frame = min(frame_index, len(self.frames) - 1)
+
+    def update_event(self, event_type, data):
+        from It1_interfaces.EventTypes import GAME_STARTED, GAME_ENDED
+        if event_type == GAME_STARTED:
+            pass
+        elif event_type == GAME_ENDED:
+            pass
 
     def get_img(self) -> Img:
         """Get the current frame image."""

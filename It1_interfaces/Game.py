@@ -1,454 +1,238 @@
-# # # import inspect
-# # # import pathlib
-# # # import queue, threading, time, cv2, math
-# # # from typing import List, Dict, Tuple, Optional
-# # # from Board import Board
-# # # from Command import Command
-# # # from Piece import Piece
-# # # from img import Img
-
-# # # class InvalidBoard(Exception): 
-# # #     pass
-
-# # # class Game:
-# # #     def __init__(self, pieces: List[Piece], board: Board):
-# # #         """Initialize the game with pieces, board, and optional event bus."""
-# # #         self.pieces = pieces
-# # #         self.board = board
-# # #         self.start_time = time.time()
-# # #         self.user_input_queue = queue.Queue()
-        
-# # #         # Player selections - track selected cell for each player
-# # #         self.player_a_selection = (0, 0)  # Player A (arrow keys) - red frame
-# # #         self.player_b_selection = (0, 1)  # Player B (WASD) - blue frame
-        
-# # #         # Find pieces by player (assuming piece IDs indicate ownership)
-# # #         self.player_a_pieces = [p for p in pieces if 'A' in p.piece_id or 'W' in p.piece_id]
-# # #         self.player_b_pieces = [p for p in pieces if 'B' in p.piece_id ]
-        
-# # #     def game_time_ms(self) -> int:
-# # #         """Return the current game time in milliseconds."""
-# # #         return int((time.time() - self.start_time) * 1000)
-
-# # #     def clone_board(self) -> Board:
-# # #         """Return a brand-new Board wrapping a copy of the background pixels."""
-# # #         return self.board.clone()
-
-# # #     def start_user_input_thread(self):
-# # #         """Start the user input thread for mouse handling."""
-# # #         def input_worker():
-# # #             while True:
-# # #                 key = cv2.waitKey(1) & 0xFF
-# # #                 if key == 255:  # No key pressed
-# # #                     continue
-                    
-# # #                 now = self.game_time_ms()
-# # #                 cmd = None
-                
-# # #                 # Player A controls (Arrow keys)
-# # #                 if key == 82:  # Up arrow
-# # #                     new_pos = (max(0, self.player_a_selection[0] - 1), self.player_a_selection[1])
-# # #                     self.player_a_selection = new_pos
-# # #                 elif key == 84:  # Down arrow  
-# # #                     new_pos = (min(self.board.H_cells - 1, self.player_a_selection[0] + 1), self.player_a_selection[1])
-# # #                     self.player_a_selection = new_pos
-# # #                 elif key == 81:  # Left arrow
-# # #                     new_pos = (self.player_a_selection[0], max(0, self.player_a_selection[1] - 1))
-# # #                     self.player_a_selection = new_pos
-# # #                 elif key == 83:  # Right arrow
-# # #                     new_pos = (self.player_a_selection[0], min(self.board.W_cells - 1, self.player_a_selection[1] + 1))
-# # #                     self.player_a_selection = new_pos
-# # #                 elif key == 13:  # Enter - Player A move
-# # #                     cmd = Command(now, "player_a", "Move", [self.player_a_selection])
-                    
-# # #                 # Player B controls (WASD)
-# # #                 elif key == ord('w') or key == ord('W'):
-# # #                     new_pos = (max(0, self.player_b_selection[0] - 1), self.player_b_selection[1])
-# # #                     self.player_b_selection = new_pos
-# # #                 elif key == ord('s') or key == ord('S'):
-# # #                     new_pos = (min(self.board.H_cells - 1, self.player_b_selection[0] + 1), self.player_b_selection[1])
-# # #                     self.player_b_selection = new_pos
-# # #                 elif key == ord('a') or key == ord('A'):
-# # #                     new_pos = (self.player_b_selection[0], max(0, self.player_b_selection[1] - 1))
-# # #                     self.player_b_selection = new_pos
-# # #                 elif key == ord('d') or key == ord('D'):
-# # #                     new_pos = (self.player_b_selection[0], min(self.board.W_cells - 1, self.player_b_selection[1] + 1))
-# # #                     self.player_b_selection = new_pos
-# # #                 elif key == ord(' '):  # Space - Player B move
-# # #                     cmd = Command(now, "player_b", "Move", [self.player_b_selection])
-# # #                 elif key == 27:  # Escape
-# # #                     break
-                    
-# # #                 if cmd:
-# # #                     self.user_input_queue.put(cmd)
-                    
-# # #         thread = threading.Thread(target=input_worker, daemon=True)
-# # #         thread.start()
-
-# # #     def run(self):
-# # #         """Main game loop."""
-# # #         self.start_user_input_thread()
-
-# # #         start_ms = self.game_time_ms()
-# # #         for p in self.pieces:
-# # #             p.reset(start_ms)
-
-# # #         # Main loop
-# # #         while not self._is_win():
-# # #             now = self.game_time_ms()
-
-# # #             # (1) Update physics & animations
-# # #             for p in self.pieces:
-# # #                 p.update(now)
-
-# # #             # (2) Handle queued Commands from input thread
-# # #             while not self.user_input_queue.empty():
-# # #                 cmd: Command = self.user_input_queue.get()
-# # #                 self._process_input(cmd)
-
-# # #             # (3) Draw current position
-# # #             self._draw()
-# # #             if not self._show():
-# # #                 break
-
-# # #             # (4) Detect captures
-# # #             self._resolve_collisions()
-
-# # #         self._announce_win()
-# # #         cv2.destroyAllWindows()
-
-# # #     def _process_input(self, cmd: Command):
-# # #         """Process player input commands."""
-# # #         if cmd.type == "Move":
-# # #             target_cell = cmd.params[0]
-            
-# # #             # Find the piece at the selected position
-# # #             selected_piece = None
-# # #             if cmd.piece_id == "player_a":
-# # #                 # Find Player A piece at their selection
-# # #                 current_pos = self.player_a_selection
-# # #                 for piece in self.player_a_pieces:
-# # #                     piece_pos = self._get_piece_cell_position(piece)
-# # #                     if piece_pos == current_pos:
-# # #                         selected_piece = piece
-# # #                         break
-# # #             elif cmd.piece_id == "player_b":
-# # #                 # Find Player B piece at their selection  
-# # #                 current_pos = self.player_b_selection
-# # #                 for piece in self.player_b_pieces:
-# # #                     piece_pos = self._get_piece_cell_position(piece)
-# # #                     if piece_pos == current_pos:
-# # #                         selected_piece = piece
-# # #                         break
-            
-# # #             if selected_piece:
-# # #                 # Validate and execute move
-# # #                 if self._is_valid_move(selected_piece, target_cell):
-# # #                     selected_piece.on_command(cmd, self.game_time_ms())
-
-# # #     def _get_piece_cell_position(self, piece: Piece) -> Tuple[int, int]:
-# # #         """Get the current cell position of a piece."""
-# # #         # This would depend on your Physics implementation
-# # #         # For now, return a placeholder
-# # #         return (0, 0)
-        
-# # #     def _is_valid_move(self, piece: Piece, target_cell: Tuple[int, int]) -> bool:
-# # #         """Check if a move is valid for the given piece."""
-# # #         # Check if piece is in idle state (not in rest)
-# # #         if not piece.current_state.can_transition(self.game_time_ms()):
-# # #             return False
-            
-# # #         # Check if move is legal according to piece's move set
-# # #         current_pos = self._get_piece_cell_position(piece)
-# # #         relative_move = (target_cell[0] - current_pos[0], target_cell[1] - current_pos[1])
-        
-# # #         # This would check against the piece's Moves object
-# # #         valid_moves = piece.current_state.moves.get_moves(current_pos[0], current_pos[1])
-# # #         return target_cell in valid_moves
-
-# # #     def _draw(self):
-# # #         """Draw the current game state."""
-# # #         # Clone board for drawing
-# # #         display_board = self.clone_board()
-        
-# # #         # Draw all pieces
-# # #         now = self.game_time_ms()
-# # #         for piece in self.pieces:
-# # #             piece.draw_on_board(display_board, now)
-            
-# # #         # Draw selection frames
-# # #         self._draw_selection_frame(display_board, self.player_a_selection, (0, 0, 255))  # Red for Player A
-# # #         self._draw_selection_frame(display_board, self.player_b_selection, (255, 0, 0))  # Blue for Player B
-        
-# # #         self.current_display = display_board
-
-# # #     def _draw_selection_frame(self, board: Board, cell_pos: Tuple[int, int], color: Tuple[int, int, int]):
-# # #         """Draw a selection frame around a cell."""
-# # #         row, col = cell_pos
-# # #         x = col * board.cell_W_pix
-# # #         y = row * board.cell_H_pix
-        
-# # #         # Draw frame rectangle
-# # #         cv2.rectangle(board.img.img, 
-# # #                      (x, y), 
-# # #                      (x + board.cell_W_pix, y + board.cell_H_pix), 
-# # #                      color, 3)
-
-# # #     def _show(self) -> bool:
-# # #         """Show the current frame and handle window events."""
-# # #         if hasattr(self, 'current_display'):
-# # #             cv2.imshow("Kung Fu Chess", self.current_display.img.img)
-# # #             return cv2.waitKey(1) & 0xFF != 27  # Return False if ESC pressed
-# # #         return True
-
-# # #     def _resolve_collisions(self):
-# # #         """Resolve piece collisions and captures."""
-        
-# # #         positions = {}
-# # #         to_remove = []
-
-# # #         for piece in self.pieces:
-# # #           pos = self._get_piece_cell_position(piece)
-# # #           if pos not in positions:
-# # #             positions[pos] = [piece]
-# # #           else:
-# # #             positions[pos].append(piece)
-
-# # #     # כל תא עם יותר מחייל אחד - נבדוק תפיסות
-# # #         for pos, pieces_in_cell in positions.items():
-# # #           if len(pieces_in_cell) > 1:
-# # #             # לדוגמה, נשאיר רק את החייל של השחקן שמזיז, או לפי כללים אחרים
-# # #             # כאן פשוט נשאיר את הראשון ונשמיד את האחרים
-# # #             survivor = pieces_in_cell[0]
-# # #             for p in pieces_in_cell[1:]:
-# # #                 to_remove.append(p)
-
-# # #         for p in to_remove:
-# # #            if p in self.pieces:
-# # #              self.pieces.remove(p)
-
-
-# # #     def _is_win(self) -> bool:
-# # #         """Check if the game has ended."""
-# # #         # Check for win conditions (e.g., king captured)
-# # #         return False
-
-# # #     def _announce_win(self):
-# # #         """Announce the winner."""
-# # #         print("Game Over!")
-
-# # #         """Announce the winner."""
-# # #         if len(self.pieces) == 0:
-# # #             print("Game ended - No pieces remaining!")
-# # #         elif len(self.pieces) == 1:
-# # #             winner_type = self.pieces[0].piece_id.split('_')[0]
-# # #             print(f"Game ended - {winner_type} wins!")
-# # #         else:
-# # #             remaining_types = set(piece.piece_id.split('_')[0] for piece in self.pieces)
-# # #             if len(remaining_types) == 1:
-# # #                 winner_type = list(remaining_types)[0]
-# # #                 print(f"Game ended - {winner_type} wins!")
-# # #             else:
-# # #                 print("Game ended!")
-
-
-# # # It1_interfaces/Game.py
-
-# # import pygame
-# # import time
-# # from It1_interfaces.Board import Board
-# # from It1_interfaces.Graphics import Graphics
-# # from It1_interfaces.GraphicsFactory import GraphicsFactory
-# # from It1_interfaces.PhysicsFactory import PhysicsFactory
-# # from It1_interfaces.PieceFactory import PieceFactory
-# # from It1_interfaces.State import State
-
-# # class Game:
-# #     def __init__(self):
-# #         pygame.init()
-# #         self.clock = pygame.time.Clock()
-# #         self.graphics = GraphicsFactory.create()
-# #         self.physics = PhysicsFactory.create()
-# #         self.board = Board(self.physics)
-# #         self.piece_factory = PieceFactory()
-# #         self.running = True
-# #         self.last_time = time.time()
-
-# #         self.board.populate_board(self.piece_factory)
-
-# #     def handle_events(self):
-# #         for event in pygame.event.get():
-# #             if event.type == pygame.QUIT:
-# #                 self.running = False
-# #             self.graphics.handle_input(event, self.board)
-
-# #     def update(self, dt):
-# #         self.board.update(dt)
-
-# #     def render(self):
-# #         self.graphics.draw(self.board)
-
-# #     def run(self):
-# #         while self.running:
-# #             current_time = time.time()
-# #             dt = current_time - self.last_time
-# #             self.last_time = current_time
-
-# #             self.handle_events()
-# #             self.update(dt)
-# #             self.render()
-
-# #             pygame.display.flip()
-# #             self.clock.tick(60)
-
-# #         pygame.quit()
-
-# import pygame
-# import time
-# import pathlib
-
-# from It1_interfaces.Board import Board
-# from It1_interfaces.GraphicsFactory import GraphicsFactory
-# from It1_interfaces.PhysicsFactory import PhysicsFactory
-# from It1_interfaces.PieceFactory import PieceFactory
-
-# class Game:
-#     def __init__(self):
-#         pygame.init()
-#         self.clock = pygame.time.Clock()
-
-#         # נתיב לספרייטים, כאן תעדכני לפי מבנה התיקיות שלך:
-#         self.sprites_path = pathlib.Path("pieces/BB/states/idle/sprites")
-
-#         # נתיב לקובץ לוח השחמט - מניח שהוא בתיקיה הראשית:
-#         self.board_img_path = pathlib.Path("board.png")
-
-#         # גודל תא במידות פיקסלים, לדוגמה 64x64
-#         self.cell_size = (64, 64)
-        
-        
-#         # יצירת אובייקטים דרך הפקטוריז
-#         self.graphics = GraphicsFactory.create(self.sprites_path, cell_size=self.cell_size)
-#         self.physics = PhysicsFactory.create()
-#         self.board = Board(self.physics, board_img_path=self.board_img_path, cell_size=self.cell_size)
-
-#         self.piece_factory = PieceFactory()
-#         self.board.populate_board(self.piece_factory)
-
-#         self.running = True
-#         self.last_time = time.time()
-
-#     def handle_events(self):
-#         for event in pygame.event.get():
-#             if event.type == pygame.QUIT:
-#                 self.running = False
-#             self.graphics.handle_input(event, self.board)
-
-#     def update(self, dt):
-#         self.board.update(dt)
-
-#     def render(self):
-#         self.graphics.draw(self.board)
-
-#     def run(self):
-#         while self.running:
-#             current_time = time.time()
-#             dt = current_time - self.last_time
-#             self.last_time = current_time
-
-#             self.handle_events()
-#             self.update(dt)
-#             self.render()
-
-#             pygame.display.flip()
-#             self.clock.tick(60)
-
-#         pygame.quit()
-
-# It1_interfaces/Game.py
-
-# It1_interfaces/Game.py
-
-import pygame
-import time
+import inspect
 import pathlib
+import queue, threading, time, cv2, math
+from typing import List, Dict, Tuple, Optional
 from It1_interfaces.Board import Board
-from It1_interfaces.GraphicsFactory import GraphicsFactory
-from It1_interfaces.PhysicsFactory import PhysicsFactory
-from It1_interfaces.PieceFactory import PieceFactory
+from It1_interfaces.Command import Command
+from It1_interfaces.Piece import Piece
+from It1_interfaces.img import Img
 
+
+class InvalidBoard(Exception): ...
+# ────────────────────────────────────────────────────────────────────
 class Game:
-    def __init__(self):
+    def __init__(self, pieces: List[Piece], board: Board, event_bus=None):
+        """Initialize the game with pieces, board, and optional event bus."""
+        self.pieces = {p.piece_id: p for p in pieces}
+        self.board = board
+        self.start_time = time.time()
+        self.user_input_queue = queue.Queue()
+        self.event_bus = event_bus
+        self.selection = {
+            'A': {'pos': [0, 0], 'selected': None, 'color': (255, 0, 0)},
+            'B': {'pos': [7, 7], 'selected': None, 'color': (0, 0, 255)}
+        }
+
+    # ─── helpers ─────────────────────────────────────────────────────────────
+    def game_time_ms(self) -> int:
+        """Return the current game time in milliseconds."""
+        return int((time.time() - self.start_time) * 1000)
+
+    def clone_board(self) -> Board:
+        """
+        Return a **brand-new** Board wrapping a copy of the background pixels
+        so we can paint sprites without touching the pristine board.
+        """
+        return self.board.clone()
+
+    def _draw(self):
+        """Draw the current game state."""
+        board_img = self.clone_board().img
+        for piece in self.pieces.values():
+            piece.draw_on_board(board_img, self.game_time_ms())
+        # Draw selection rectangles
+        for player in ['A', 'B']:
+            pos = self.selection[player]['pos']
+            color = self.selection[player]['color']
+            import cv2
+            x = pos[1] * self.board.cell_W_pix
+            y = pos[0] * self.board.cell_H_pix
+            cv2.rectangle(board_img.img, (x, y), (x + self.board.cell_W_pix, y + self.board.cell_H_pix), color, 3)
+            selected_piece = self.selection[player]['selected']
+            if selected_piece:
+                # Draw rectangle around selected piece
+                p_pos = selected_piece.current_state.physics.current_cell
+                sx = p_pos[1] * self.board.cell_W_pix
+                sy = p_pos[0] * self.board.cell_H_pix
+                cv2.rectangle(board_img.img, (sx, sy), (sx + self.board.cell_W_pix, sy + self.board.cell_H_pix), color, 5)
+        self.current_display = board_img
+
+    def start_user_input_thread(self):
+        """Start the user input thread for keyboard handling."""
+        import pygame
         pygame.init()
-        self.clock = pygame.time.Clock()
+        clock = pygame.time.Clock()
+        self._should_quit = False
 
-        # נתיבים
-        self.sprites_path = pathlib.Path("pieces")  # שורש כל החיילים
-        self.board_img_path = pathlib.Path("board.png")
-        self.cell_size = (64, 64)  # גודל תא
+        def input_worker():
+            while not self._should_quit:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        self._should_quit = True
+                    elif event.type == pygame.KEYDOWN:
+                        # Player A controls
+                        if event.key == pygame.K_UP:
+                            self._move_selection('A', 'up')
+                        elif event.key == pygame.K_DOWN:
+                            self._move_selection('A', 'down')
+                        elif event.key == pygame.K_LEFT:
+                            self._move_selection('A', 'left')
+                        elif event.key == pygame.K_RIGHT:
+                            self._move_selection('A', 'right')
+                        elif event.key == pygame.K_RETURN:
+                            self._select_piece('A')
+                        # Player B controls
+                        elif event.key == pygame.K_w:
+                            self._move_selection('B', 'up')
+                        elif event.key == pygame.K_s:
+                            self._move_selection('B', 'down')
+                        elif event.key == pygame.K_a:
+                            self._move_selection('B', 'left')
+                        elif event.key == pygame.K_d:
+                            self._move_selection('B', 'right')
+                        elif event.key == pygame.K_SPACE:
+                            self._select_piece('B')
+                clock.tick(30)
+        import threading
+        thread = threading.Thread(target=input_worker, daemon=True)
+        thread.start()
 
-        # יצירת גרפיקה
-        self.graphics = GraphicsFactory.create(
-            sprites_dir=self.sprites_path,
-            cell_size=self.cell_size
-        )
-
-        # שליפת תמונת הלוח
-        from It1_interfaces.img import Img
-        board_img = Img().read(str(self.board_img_path),
-                               size=None,
-                               keep_aspect=False)
-
-        # יצירת הלוח
-        H_pix, W_pix = board_img.img.shape[:2]
-        H_cells = H_pix // self.cell_size[1]
-        W_cells = W_pix // self.cell_size[0]
-
-        self.board = Board(
-            cell_H_pix=self.cell_size[1],
-            cell_W_pix=self.cell_size[0],
-            W_cells=W_cells,
-            H_cells=H_cells,
-            img=board_img
-        )
-
-        # יצירת פיזיקה
-        self.physics_factory = PhysicsFactory(self.board)
-
-        # יצירת מפעל חיילים
-        self.piece_factory = PieceFactory(
-            board=self.board,
-            pieces_root=self.sprites_path
-        )
-
-        # self.board.populate_board(self.piece_factory)
-
-        self.running = True
-        self.last_time = time.time()
-
-    def handle_events(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
-            # self.graphics.handle_input(event, self.board)
-
-    def update(self, dt):
-        self.board.update(dt)
-
-    def render(self):
-        self.graphics.draw(self.board)
-
+    # ─── main public entrypoint ──────────────────────────────────────────────
     def run(self):
-        while self.running:
-            current_time = time.time()
-            dt = current_time - self.last_time
-            self.last_time = current_time
+        """Main game loop."""
+        if self.event_bus:
+            from It1_interfaces.EventTypes import GAME_STARTED
+            self.event_bus.publish(GAME_STARTED, {"time": self.game_time_ms()})
+        self.start_user_input_thread()
 
-            self.handle_events()
-            self.update(dt)
-            self.render()
+        start_ms = self.game_time_ms()
+        for p in self.pieces.values():
+            p.reset(start_ms)
 
-            pygame.display.flip()
-            self.clock.tick(60)
+        # ─────── main loop ──────────────────────────────────────────────────
+        while not self._is_win() and not getattr(self, '_should_quit', False):
+            now = self.game_time_ms()
 
-        pygame.quit()
+            # (1) Update physics & animations
+            for p in self.pieces.values():
+                p.update(now)
+
+            # (2) Handle queued Commands from input thread
+            while not self.user_input_queue.empty():
+                cmd: Command = self.user_input_queue.get()
+                self._process_input(cmd)
+                if self.event_bus:
+                    from It1_interfaces.EventTypes import MOVE_DONE
+                    self.event_bus.publish(MOVE_DONE, {"command": cmd})
+
+            # (3) Draw current position
+            self._draw()
+            if not self._show():  # Returns False if user closed window
+                break
+
+            # (4) Detect captures
+            self._resolve_collisions()
+
+        if self.event_bus:
+            from It1_interfaces.EventTypes import GAME_ENDED
+            self.event_bus.publish(GAME_ENDED, {"time": self.game_time_ms()})
+        self._announce_win()
+        cv2.destroyAllWindows()
+
+    # ─── drawing helpers ────────────────────────────────────────────────────
+    def _process_input(self, cmd: Command):
+        """Process player input commands."""
+        if cmd.piece_id in self.pieces:
+            self.pieces[cmd.piece_id].on_command(cmd)
+
+    
+
+    def _show(self) -> bool:
+        """Show the current frame and handle window events."""
+        if hasattr(self, 'current_display'):
+            cv2.imshow("Kung Fu Chess", self.current_display.img)
+            return cv2.waitKey(1) & 0xFF != 27  # Return False if ESC pressed
+        return True
+
+    # ─── capture resolution ────────────────────────────────────────────────
+    def _resolve_collisions(self):
+        """Resolve piece collisions and captures."""
+        positions: Dict[tuple, List[Piece]] = {}
+        to_remove = []
+
+        # Group pieces by their positions
+        for piece in self.pieces.values():
+            pos = piece.current_state.physics.get_pos()
+            if pos not in positions:
+                positions[pos] = []
+            positions[pos].append(piece)
+
+        # Resolve collisions
+        for pos, pieces_in_cell in positions.items():
+            if len(pieces_in_cell) > 1:
+                survivor = pieces_in_cell[0]
+                for p in pieces_in_cell[1:]:
+                    to_remove.append(p)
+
+        # Remove captured pieces
+        for p in to_remove:
+            if self.event_bus:
+                from It1_interfaces.EventTypes import PIECE_CAPTURED
+                self.event_bus.publish(PIECE_CAPTURED, {"piece": p})
+            del self.pieces[p.piece_id]
+
+    # ─── board validation & win detection ───────────────────────────────────
+    def _is_win(self) -> bool:
+        """Check if the game has ended."""
+        kings = [p for p in self.pieces.values() if p.piece_type == "King"]
+        return False  # Temporary override to allow the game to continue
+
+    def _announce_win(self):
+        """Announce the winner."""
+        kings = [p for p in self.pieces.values() if p.piece_type == "King"]
+        if len(kings) == 1:
+            print(f"Game Over! {kings[0].color} wins!")
+        else:
+            print("Game Over! It's a draw.")
+        print("Game Over! Press any key to close the window.")
+        cv2.waitKey(0)  # Wait for a key press before closing the window
+
+    def _move_selection(self, player, direction):
+        # Move the selection cursor for the given player
+        pos = self.selection[player]['pos']
+        if direction == 'up' and pos[0] > 0:
+            pos[0] -= 1
+        elif direction == 'down' and pos[0] < self.board.H_cells - 1:
+            pos[0] += 1
+        elif direction == 'left' and pos[1] > 0:
+            pos[1] -= 1
+        elif direction == 'right' and pos[1] < self.board.W_cells - 1:
+            pos[1] += 1
+
+    def _select_piece(self, player):
+        # Select or move a piece for the given player
+        pos = tuple(self.selection[player]['pos'])
+        selected = self.selection[player]['selected']
+        if selected is None:
+            # First keypress: select a piece at the cursor
+            for piece in self.pieces.values():
+                p_pos = tuple(piece.current_state.physics.current_cell)
+                if p_pos == pos:
+                    self.selection[player]['selected'] = piece
+                    break
+        else:
+            # Second keypress: try to move selected piece to cursor position
+            start_pos = tuple(selected.current_state.physics.current_cell)
+            moves = selected.current_state.moves
+            allowed = False
+            for move in getattr(moves, 'move_list', []):
+                target = (start_pos[0] + move[0], start_pos[1] + move[1])
+                if target == pos:
+                    allowed = True
+                    break
+            if allowed:
+                now = self.game_time_ms()
+                cmd = Command.create_move_command(now, selected.piece_id, start_pos, pos)
+                self.user_input_queue.put(cmd)
+            # Deselect after attempt
+            self.selection[player]['selected'] = None
