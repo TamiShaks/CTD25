@@ -37,9 +37,14 @@ def main():
 
     # Initialize the board image
     board_img = Img()
-    board_img.read(pathlib.Path("board.png"), size=(512, 512))
-
+    try:
+        board_img.read(pathlib.Path("board.png"), size=(512, 512))
+        print("✅ Board image loaded successfully!")
+    except Exception as e:
+        print(f"⚠️ Error loading board image: {e}")
+    
     if board_img.img is None:
+        print("❌ Failed to load board.png")
         exit(1)
 
     # Initialize the board
@@ -65,19 +70,51 @@ def main():
                     color = "White" if color_char == "W" else "Black"
                     piece_id = f"{cell}{row_idx}{col_idx}"
                     moves_path = pathlib.Path(f"pieces/{cell}/moves.txt")
-                    sprites_folder = pathlib.Path(f"pieces/{cell}/states/idle/sprites")
                     moves = Moves(moves_path, dims=(8, 8))
-                    graphics = Graphics(sprites_folder, cell_size=(64, 64))
-                    physics = Physics(start_cell=(row_idx, col_idx), board=board)
-                    state = State(moves, graphics, physics)
-                    pieces.append(Piece(piece_id=piece_id, init_state=state, piece_type=piece_type))
+                    
+                    # Create all state graphics and physics
+                    idle_graphics = Graphics(pathlib.Path(f"pieces/{cell}/states/idle/sprites"), cell_size=(64, 64))
+                    move_graphics = Graphics(pathlib.Path(f"pieces/{cell}/states/move/sprites"), cell_size=(64, 64))
+                    jump_graphics = Graphics(pathlib.Path(f"pieces/{cell}/states/jump/sprites"), cell_size=(64, 64))
+                    short_rest_graphics = Graphics(pathlib.Path(f"pieces/{cell}/states/short_rest/sprites"), cell_size=(64, 64))
+                    long_rest_graphics = Graphics(pathlib.Path(f"pieces/{cell}/states/long_rest/sprites"), cell_size=(64, 64))
+                    
+                    # Create separate physics for each state to maintain position correctly
+                    idle_physics = Physics(start_cell=(row_idx, col_idx), board=board)
+                    move_physics = Physics(start_cell=(row_idx, col_idx), board=board)
+                    jump_physics = Physics(start_cell=(row_idx, col_idx), board=board)
+                    short_rest_physics = Physics(start_cell=(row_idx, col_idx), board=board)
+                    long_rest_physics = Physics(start_cell=(row_idx, col_idx), board=board)
+                    
+                    # Create states
+                    from It1_interfaces.State import create_long_rest_state, create_short_rest_state, create_move_state
+                    idle_state = State(moves, idle_graphics, idle_physics, "idle")
+                    
+                    # Create rest states that return to idle
+                    short_rest_state = create_short_rest_state(idle_state, moves, short_rest_graphics, short_rest_physics)
+                    long_rest_state = create_long_rest_state(idle_state, moves, long_rest_graphics, long_rest_physics)
+                    
+                    # Create action states
+                    move_state = create_move_state(idle_state, moves, move_graphics, move_physics)
+                    jump_state = State(moves, jump_graphics, jump_physics, "jump")
+                    jump_state.set_transition("complete", short_rest_state)
+                    
+                    # Set up transitions from idle state
+                    idle_state.set_transition("Move", move_state)  # Move command -> move state -> long rest -> idle
+                    idle_state.set_transition("Jump", jump_state)  # Jump command -> jump state -> short rest -> idle
+                    
+                    # Create piece with idle state
+                    piece = Piece(piece_id=piece_id, init_state=idle_state, piece_type=piece_type)
+                    piece.color = color  # Add color property
+                    pieces.append(piece)
 
     king_count = sum(1 for piece in pieces if piece.piece_type == 'K')
     if king_count != 2:
         exit(1)
 
-    # Create the game instance
-    game = Game(pieces=pieces, board=board, event_bus=event_bus)
+    # Create the game instance with managers
+    game = Game(pieces=pieces, board=board, event_bus=event_bus, 
+                score_manager=score_manager, move_logger=move_logger)
 
     game.run()
 

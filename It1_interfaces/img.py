@@ -11,53 +11,38 @@ class Img:
 
     def read(self, path: pathlib.Path, size: Optional[Tuple[int, int]] = None, keep_aspect: bool = True) -> "Img":
         """Read an image from file."""
+        
         try:
-            # Read image with alpha channel
-            self.img = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
-            if self.img is None:
-                self.img = cv2.imread(str(path), cv2.IMREAD_COLOR)
-
-            if self.img is None:
-                # Create a default colored rectangle if image not found
-                if size:
-                    w, h = size
-                else:
-                    w, h = 64, 64
-
-                self.img = np.zeros((h, w, 4), dtype=np.uint8)
-                # Create a colored square based on filename for variety
-                color_hash = hash(str(path)) % 256
-                self.img[:, :, 0] = color_hash  # B
-                self.img[:, :, 1] = (color_hash * 2) % 256  # G
-                self.img[:, :, 2] = (color_hash * 3) % 256  # R
-                self.img[:, :, 3] = 255  # A
-            else:
-
-                # Convert to BGRA if needed
-                if len(self.img.shape) == 3:
-                    if self.img.shape[2] == 3:
-                        alpha = np.ones((self.img.shape[0], self.img.shape[1], 1), dtype=self.img.dtype) * 255
-                        self.img = np.concatenate([self.img, alpha], axis=2)
-
-                # Resize if needed
-                if size:
-                    self.img = cv2.resize(self.img, size)
-
-            if self.img is not None:
-                self.height, self.width = self.img.shape[:2]
-
-        except Exception as e:
-            # Create default image
+            # Try to read image first
+            if path.exists():
+                self.img = cv2.imread(str(path), cv2.IMREAD_COLOR)  # Just load as BGR, no alpha
+                
+                if self.img is not None:
+                    
+                    # Resize if needed
+                    if size:
+                        self.img = cv2.resize(self.img, size)
+                    
+                    self.height, self.width = self.img.shape[:2]
+                    return self
+            
+            # If we get here, file doesn't exist or couldn't load
             if size:
                 w, h = size
             else:
                 w, h = 64, 64
-            self.img = np.zeros((h, w, 4), dtype=np.uint8)
-            self.img[:, :] = [128, 128, 128, 255]  # Gray default
-            self.width, self.height = w, h
+            
+            # Create simple fallback (much smaller if memory issues)
+            self.img = np.full((h, w, 3), 128, dtype=np.uint8)
+            self.height, self.width = h, w
+            
+        except Exception as e:
+            print(f"[ERROR] Exception in image loading: {e}")
+            # Minimal fallback
+            self.img = np.full((64, 64, 3), 128, dtype=np.uint8)
+            self.height, self.width = 64, 64
         
         return self
-
     def draw_on(self, target: "Img", x: int, y: int):
         """Draw this image on another image at the specified position with alpha blending."""
         if isinstance(target, np.ndarray):
@@ -92,25 +77,11 @@ class Img:
             if src_x2 <= src_x1 or src_y2 <= src_y1:
                 return
 
-            src_region = self.img[src_y1:src_y2, src_x1:src_x2].astype(float)
-            dst_region = target_img[dst_y1:dst_y2, dst_x1:dst_x2].astype(float)
-
-            # Extract alpha channel normalized [0..1]
-            alpha = src_region[:, :, 3] / 255.0
-            alpha = alpha[:, :, None]  # Make it broadcastable
-
-            # Blend all color channels at once using vectorized operations
-            dst_region[:, :, :3] = alpha * src_region[:, :, :3] + (1 - alpha) * dst_region[:, :, :3]
-
-            # Set alpha to max between source and destination (optional)
-            dst_region[:, :, 3] = np.maximum(src_region[:, :, 3], dst_region[:, :, 3])
-
-            # Write back to target (convert back to uint8)
-            target_img[dst_y1:dst_y2, dst_x1:dst_x2] = dst_region.astype(np.uint8)
+            # Simple copy without alpha blending to avoid memory issues
+            src_region = self.img[src_y1:src_y2, src_x1:src_x2]
+            target_img[dst_y1:dst_y2, dst_x1:dst_x2] = src_region
 
         except Exception as e:
-            pass
-        finally:
             pass
 
 
@@ -122,6 +93,39 @@ class Img:
             new_img.width = self.width
             new_img.height = self.height
         return new_img
+
+    def apply_blue_tint(self, intensity: float = 1.0) -> "Img":
+        """Apply a blue tint to the image (for rest state) with variable intensity.
+        
+        Args:
+            intensity: Tint intensity from 0.0 (no tint) to 1.0 (full tint)
+        """
+        if self.img is not None:
+            # Clamp intensity to valid range
+            intensity = max(0.0, min(1.0, intensity))
+            
+            # If intensity is 0, return original image
+            if intensity == 0.0:
+                return self.copy()
+            
+            # Create a copy first
+            tinted = self.copy()
+            
+            # Convert to float for calculations
+            img_float = tinted.img.astype(np.float32)
+            original_float = img_float.copy()
+            
+            # OpenCV uses BGR format: [Blue, Green, Red]
+            # Enhance blue channel and reduce red/green based on intensity
+            img_float[:, :, 0] = np.minimum(img_float[:, :, 0] * (1.0 + 0.8 * intensity) + 80 * intensity, 255)  # Enhance Blue
+            img_float[:, :, 1] = img_float[:, :, 1] * (1.0 - 0.7 * intensity)  # Reduce Green  
+            img_float[:, :, 2] = img_float[:, :, 2] * (1.0 - 0.7 * intensity)  # Reduce Red
+            
+            # Convert back to uint8
+            tinted.img = img_float.astype(np.uint8)
+            return tinted
+        else:
+            return self.copy()
 
     def show(self, window_name: str = "Image"):
         """Show the image in a window."""

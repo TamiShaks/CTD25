@@ -27,7 +27,7 @@ class FakeState:
         self.physics = self.FakePhysics()
 
     class FakeGraphics:
-        def get_img(self):
+        def get_img(self, state_start_time=0, rest_duration_ms=0, now_ms=0):
             return self.FakeSprite()
 
         class FakeSprite:
