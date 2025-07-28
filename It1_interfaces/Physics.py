@@ -40,6 +40,13 @@ class Physics:
             distance = max(dr, dc)
             self.move_duration = int(distance / self.SLIDE_CELLS_PER_SEC * 1000)
             
+        elif cmd.type == "Jump" and cmd.params:
+            # For jump, stay in the same position but mark as "moving" for animation
+            self.target_cell = self.current_cell  # Jump in place
+            self.is_moving = True
+            self.move_start_time = cmd.timestamp
+            self.move_duration = 1500  # 1.5 seconds for jump animation
+            
         else:
             # For non-move commands (like idle, complete, timeout), stop any movement
             # but KEEP the current position - don't reset to start_cell!

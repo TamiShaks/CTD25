@@ -11,10 +11,11 @@ def main():
     from It1_interfaces.img import Img
     from It1_interfaces.EventBus import EventBus
     from It1_interfaces.ScoreManager import ScoreManager
-    from It1_interfaces.MoveLogger import MoveLogger
     from It1_interfaces.SoundManager import SoundManager
     from It1_interfaces.AnimationManager import AnimationManager
     import pathlib
+
+    from It1_interfaces.MoveLogger_short import MoveLogger
 
     # Initialize EventBus and managers
     event_bus = EventBus()
@@ -24,11 +25,12 @@ def main():
     animation_manager = AnimationManager()
 
     # Subscribe managers to events
-    from It1_interfaces.EventTypes import MOVE_DONE, PIECE_CAPTURED, GAME_STARTED, GAME_ENDED
+    from It1_interfaces.EventTypes import MOVE_DONE, PIECE_CAPTURED, GAME_STARTED, GAME_ENDED, INVALID_MOVE
     event_bus.subscribe(MOVE_DONE, sound_manager)
     event_bus.subscribe(PIECE_CAPTURED, sound_manager)
     event_bus.subscribe(GAME_STARTED, sound_manager)
     event_bus.subscribe(GAME_ENDED, sound_manager)
+    event_bus.subscribe(INVALID_MOVE, sound_manager)  # ⭐ NEW: Sound for invalid moves
     event_bus.subscribe(MOVE_DONE, score_manager)
     event_bus.subscribe(PIECE_CAPTURED, score_manager)
     event_bus.subscribe(MOVE_DONE, move_logger)

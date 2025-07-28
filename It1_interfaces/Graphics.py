@@ -71,8 +71,8 @@ class Graphics:
         if self.frames:
             current_img = self.frames[self.current_frame]
             
-            # Apply dynamic blue tint for long_rest state
-            if self.state_name == "long_rest" and rest_duration_ms > 0:
+            # Apply dynamic blue tint for rest states
+            if self.state_name in ["long_rest", "short_rest"] and rest_duration_ms > 0:
                 # Calculate remaining time ratio (1.0 = full time left, 0.0 = no time left)
                 elapsed_ms = now_ms - state_start_time
                 remaining_ms = max(0, rest_duration_ms - elapsed_ms)

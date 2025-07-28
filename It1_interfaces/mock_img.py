@@ -1,4 +1,5 @@
 # mock_img.py
+import numpy as np
 # from img import Img
 
 # class MockImg(Img):
@@ -52,7 +53,6 @@ class MockImg(Img):
 
     def _create_mock_image(self):
         """Create a mock image array without OpenCV."""
-        import numpy as np
         # Create a simple mock image (BGRA format)
         self.img = np.zeros((self.height, self.width, 4), dtype=np.uint8)
         self.img[:, :, 3] = 255  # Full alpha
@@ -60,7 +60,6 @@ class MockImg(Img):
     def read(self, path, *args, **kwargs):
         """Mock read method that pretends to load an image."""
         # Just create a smaller mock image to simulate loading
-        import numpy as np
         size = kwargs.get('size', (64, 64))
         width, height = size
         
@@ -119,7 +118,6 @@ class MockImg(Img):
         """Create a copy of the mock image."""
         new_mock = MockImg()
         if self.img is not None:
-            import numpy as np
             new_mock.img = self.img.copy()
         new_mock.width = self.width
         new_mock.height = self.height

@@ -1,6 +1,6 @@
 import pygame
 import os
-from It1_interfaces.EventTypes import MOVE_DONE, PIECE_CAPTURED, GAME_ENDED, GAME_STARTED
+from It1_interfaces.EventTypes import MOVE_DONE, PIECE_CAPTURED, GAME_ENDED, GAME_STARTED, INVALID_MOVE
 
 class SoundManager:
     def __init__(self):
@@ -11,7 +11,8 @@ class SoundManager:
                 MOVE_DONE: "sounds/5movement0.wav",
                 PIECE_CAPTURED: "sounds/gan.wav",
                 GAME_ENDED: "sounds/applause.mp3",
-                GAME_STARTED: "sounds/1TADA.WAV"
+                GAME_STARTED: "sounds/1TADA.WAV",
+                INVALID_MOVE: "sounds/fail.mp3"
             }
             
             # Check which sound files actually exist

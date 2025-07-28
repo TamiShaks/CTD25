@@ -1,16 +1,18 @@
-import inspect
-import pathlib
 import pygame
 import queue, threading, time, math
 import cv2
+import numpy as np
 from typing import List, Dict, Tuple, Optional
 from It1_interfaces.Board import Board
 from It1_interfaces.Command import Command
 from It1_interfaces.Piece import Piece
 from It1_interfaces.img import Img
-from It1_interfaces.GameUI import GameUI
+from It1_interfaces.GameUI_short import GameUI
 from It1_interfaces.StatisticsManager import StatisticsManager
 from It1_interfaces.ThreadedInputManager import ThreadedInputManager
+from It1_interfaces.PromotionUI import PromotionUI
+from It1_interfaces.PromotionManager import PromotionManager
+from It1_interfaces.EventTypes import GAME_STARTED, GAME_ENDED, MOVE_DONE, PIECE_CAPTURED, PAWN_PROMOTION
 
 
 class InvalidBoard(Exception): ...
@@ -28,14 +30,19 @@ class Game:
         
         # Initialize managers
         self.statistics_manager = StatisticsManager()
-        self.input_manager = ThreadedInputManager(board, self.user_input_queue, debug=False)  # Set debug=True for verbose output
+        self.input_manager = ThreadedInputManager(board, self.user_input_queue, event_bus, debug=False)  # Set debug=True for verbose output
+        self.promotion_manager = PromotionManager(board)
 
-        # --- שינויים: אתחול pygame window להציג משחק (גודל תלוי בגודל הלוח) ---
+        # Cache board cell dimensions for performance
+        self.cell_width = self.board.cell_W_pix
+        self.cell_height = self.board.cell_H_pix
+
+# --- שינויים: initialization pygame window להציג game (size תלוי בגודל הלוח) ---
         pygame.init()
         pygame.font.init()  # Initialize font module
-        self.board_width = self.board.W_cells * self.board.cell_W_pix
-        self.board_height = self.board.H_cells * self.board.cell_H_pix
-        self.info_panel_width = 250  # רוחב כל פאנל מידע (שניים)
+        self.board_width = self.board.W_cells * self.cell_width
+        self.board_height = self.board.H_cells * self.cell_height
+        self.info_panel_width = 300  # רוחב כל פאנל מידע (שניים) - הגדלנו מ-250
         self.window_width = self.board_width + (2 * self.info_panel_width)  # פאנל משמאל ומימין
         self.window_height = self.board_height
         self.screen = pygame.display.set_mode((self.window_width, self.window_height))
@@ -43,8 +50,9 @@ class Game:
         self.clock = pygame.time.Clock()
         self._should_quit = False
         
-        # אתחול ממשק המשתמש
+        # Initialize UI
         self.ui = GameUI(self.info_panel_width)
+        self.promotion_ui = PromotionUI(self.window_width, self.window_height)
 
     # ─── helpers ─────────────────────────────────────────────────────────────
     def game_time_ms(self) -> int:
@@ -68,16 +76,10 @@ class Game:
         for piece in self.pieces.values():
             piece.draw_on_board(board_img, self.game_time_ms())
         
-        # Draw selection rectangles
+        # Get player selections once
         selection = self.input_manager.get_all_selections()
-        for player in ['A', 'B']:
-            pos = selection[player]['pos']
-            color = selection[player]['color']
-            x = pos[1] * self.board.cell_W_pix
-            y = pos[0] * self.board.cell_H_pix
 
-        # --- שינוי: המרה מ־board_img.img (OpenCV) ל־pygame Surface ---
-        import numpy as np
+# --- שינוי: המרה מ־board_img.img (OpenCV) ל־pygame Surface ---
         
         # Handle both BGR and BGRA images
         if board_img.img.shape[2] == 4:
@@ -88,29 +90,39 @@ class Game:
         # Create pygame surface with proper orientation
         pygame_surface = pygame.surfarray.make_surface(img_rgb.swapaxes(0, 1))
 
-        # ציור ריבועי הבחירה על הלוח
-        selection = self.input_manager.get_all_selections()
+# draw ריבועי הבחירה על הלוח
         for player in ['A', 'B']:
             pos = selection[player]['pos']
             color = selection[player]['color']
-            rect = pygame.Rect(pos[1] * self.board.cell_W_pix, pos[0] * self.board.cell_H_pix,
-                               self.board.cell_W_pix, self.board.cell_H_pix)
+            rect = pygame.Rect(pos[1] * self.cell_width, pos[0] * self.cell_height,
+                               self.cell_width, self.cell_height)
             pygame.draw.rect(pygame_surface, color, rect, 3)
             selected_piece = selection[player]['selected']
             if selected_piece:
                 p_pos = selected_piece.current_state.physics.current_cell
-                rect2 = pygame.Rect(p_pos[1] * self.board.cell_W_pix, p_pos[0] * self.board.cell_H_pix,
-                                    self.board.cell_W_pix, self.board.cell_H_pix)
+                rect2 = pygame.Rect(p_pos[1] * self.cell_width, p_pos[0] * self.cell_height,
+                                    self.cell_width, self.cell_height)
                 pygame.draw.rect(pygame_surface, color, rect2, 5)
 
-        # הצגת הלוח במיקום הנכון (אמצע המסך)
+# showing הלוח במיקום הנכון (אמצע המסך)
         board_x_offset = self.info_panel_width  # הזחה כדי לשים את הלוח באמצע
         self.screen.blit(pygame_surface, (board_x_offset, 0))
         
-        # ציור שני פאנלי המידע באמצעות GameUI
+# draw the data with GameUI
         self.ui.draw_player_panels(self.screen, self.board_width, self.window_height, 
-                                  self.pieces, self.input_manager.get_all_selections(), self.start_time, 
+                                  self.pieces, selection, self.start_time, 
                                   self.score_manager, self.move_logger)
+        
+        # Draw promotion popup if active for any player
+        for player in ['A', 'B']:
+            promotion_state = self.input_manager.get_promotion_state(player)
+            if promotion_state['active']:
+                self.promotion_ui.draw_promotion_popup(
+                    self.screen, 
+                    player, 
+                    promotion_state['menu_selection'], 
+                    self.input_manager.promotion_options
+                )
         
         pygame.display.flip()
 
@@ -118,7 +130,6 @@ class Game:
     def run(self):
         """Main game loop."""
         if self.event_bus:
-            from It1_interfaces.EventTypes import GAME_STARTED
             self.event_bus.publish(GAME_STARTED, {"time": self.game_time_ms()})
         print("Game started. Press ESC to exit at any time.")
 
@@ -158,9 +169,12 @@ class Game:
                         continue
                 
                 # Handle game commands
-                self._process_input(cmd)
+                if cmd.type == "Promotion":
+                    self._handle_promotion_command(cmd)
+                else:
+                    self._process_input(cmd)
+                
                 if self.event_bus:
-                    from It1_interfaces.EventTypes import MOVE_DONE
                     self.event_bus.publish(MOVE_DONE, {"command": cmd})
 
             # (3) Draw current position
@@ -169,7 +183,7 @@ class Game:
             # (4) Detect captures
             self._resolve_collisions()
 
-            # הגבלת פריימרייט
+
             self.clock.tick(30)
 
         # ═══════════ STOP THREADED INPUT MANAGER ═══════════
@@ -177,7 +191,6 @@ class Game:
         print("🎮 Stopped threaded input manager")
 
         if self.event_bus:
-            from It1_interfaces.EventTypes import GAME_ENDED
             self.event_bus.publish(GAME_ENDED, {"time": self.game_time_ms()})
         
         # Display final statistics before announcing winner
@@ -195,7 +208,94 @@ class Game:
             piece.on_command(cmd, now)
         else:
             pass  # Piece not found - silently ignore
-
+    
+    def _handle_promotion_command(self, cmd: Command):
+        """Handle pawn promotion command - COMPLETELY replace the piece with a new one."""
+        if cmd.piece_id not in self.pieces:
+            return
+            
+        old_piece = self.pieces[cmd.piece_id]
+        target_pos = cmd.params[1]  # (to_row, to_col)
+        promotion_choice = cmd.params[2]  # "Q", "R", "B", "N"
+        
+        # Map promotion choice to piece type
+        promotion_map = {
+            "Q": "QB" if old_piece.color == "Black" else "QW",
+            "R": "RB" if old_piece.color == "Black" else "RW", 
+            "B": "BB" if old_piece.color == "Black" else "BW",
+            "N": "NB" if old_piece.color == "Black" else "NW"
+        }
+        
+        new_piece_type = promotion_map.get(promotion_choice, "QB" if old_piece.color == "Black" else "QW")
+        new_piece_id = new_piece_type + old_piece.piece_id[2:]  # Keep the number part
+        
+        print(f" PROMOTION: {old_piece.piece_id} promoted to {new_piece_id} at {target_pos}")
+        
+        try:
+            # Create a COMPLETELY NEW piece of the promoted type
+            from It1_interfaces.PieceFactory import PieceFactory
+            import pathlib
+            
+            # Save current state information
+            current_pos = old_piece.current_state.physics.current_cell
+            current_target = old_piece.current_state.physics.target_cell
+            is_moving = old_piece.current_state.physics.is_moving
+            current_state_name = getattr(old_piece.current_state, 'state', 'idle')
+            
+            # Create a brand new piece factory and piece
+            piece_factory = PieceFactory(self.board, pathlib.Path("pieces"))
+            new_piece = piece_factory.create_piece(new_piece_type, current_pos)
+            
+            if new_piece:
+                # Update the piece ID to match our expected ID
+                new_piece.piece_id = new_piece_id
+                
+                # Copy over important attributes from the old piece
+                new_piece.color = old_piece.color
+                new_piece.move_count = getattr(old_piece, 'move_count', 0)
+                new_piece.has_moved = getattr(old_piece, 'has_moved', False)
+                new_piece.last_action_time = getattr(old_piece, 'last_action_time', 0)
+                
+                # Set the correct position and movement state
+                new_piece.current_state.physics.current_cell = current_pos
+                new_piece.current_state.physics.target_cell = current_target
+                new_piece.current_state.physics.is_moving = is_moving
+                
+                # Make sure we transition to the correct state if needed
+                if current_state_name != 'idle':
+                    # Try to transition to the current state
+                    now = self.game_time_ms()
+                    if current_state_name == 'move':
+                        move_cmd = Command(now, new_piece_id, "Move", [current_pos, current_target])
+                        new_piece.on_command(move_cmd, now)
+                    elif current_state_name == 'jump':
+                        jump_cmd = Command(now, new_piece_id, "Jump", [current_pos, current_target])
+                        new_piece.on_command(jump_cmd, now)
+                
+                # CRITICAL: Update all references to the old piece
+                
+                # 1. Remove old piece from pieces dictionary
+                del self.pieces[old_piece.piece_id]
+                
+                # 2. Add new piece to pieces dictionary
+                self.pieces[new_piece_id] = new_piece
+                
+                # 3. Update input manager selection references
+                for player in ['A', 'B']:
+                    if (hasattr(self.input_manager, 'selection') and 
+                        self.input_manager.selection[player]['selected'] == old_piece):
+                        self.input_manager.selection[player]['selected'] = new_piece
+                        print(f"🔗 Updated {player} selection to new piece {new_piece_id}")
+                
+                print(f"✅ Successfully created and replaced with new {new_piece_type} piece")
+                
+            else:
+                print(f" Failed to create new piece of type {new_piece_type}")
+                
+        except Exception as e:
+            print(f" Error during promotion: {e}")
+            import traceback
+            traceback.print_exc()
     # ─── capture resolution ────────────────────────────────────────────────
     def _resolve_collisions(self):
         """Resolve piece collisions and captures based on chess-like rules."""
@@ -229,7 +329,6 @@ class Game:
         # Remove captured pieces
         for p in to_remove:
             if self.event_bus:
-                from It1_interfaces.EventTypes import PIECE_CAPTURED
                 self.event_bus.publish(PIECE_CAPTURED, {"piece": p})
             del self.pieces[p.piece_id]
 
@@ -296,19 +395,20 @@ class Game:
         if len(kings) == 1:
             # One king survived - that color wins
             winner_color = kings[0].color
-            print(f"🎉 Game Over! {winner_color} wins! 🎉")
+            print(f" Game Over! {winner_color} wins! ")
             print(f"The {winner_color} king survived and conquered the battlefield!")
         elif len(kings) == 0:
             # Both kings are dead - it's a draw
-            print("💀 Game Over! Both kings have fallen - It's a draw! 💀")
+            print(" Game Over! Both kings have fallen - It's a draw! ")
         else:
             # This shouldn't happen in normal gameplay
             print("Game Over! Unexpected end condition.")
         
         print("Press any key to close the window.")
-        # במקום cv2.waitKey, פשוט נמתין עם pygame
+# במקום cv2.waitKey, simple נמתין with pygame
         waiting = True
         while waiting:
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN or event.type == pygame.QUIT:
                     waiting = False
+                    

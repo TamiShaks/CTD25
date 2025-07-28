@@ -38,6 +38,13 @@ class ScoreManager:
         """Get current scores."""
         return self.score.copy()
     
+    def get_player_score(self, player):
+        """Get score for a specific player (A/B format)."""
+        # Map player A/B to White/Black
+        color_map = {"A": "White", "B": "Black"}
+        color = color_map.get(player, "White")
+        return self.score.get(color, 0)
+    
     def get_moves_count(self):
         """Get move counts."""
         return self.moves_count.copy()

@@ -65,6 +65,42 @@ class State:
         """Set a transition from this state to another state on an event."""
         self.transitions[event] = target
 
+    def _create_transition_state(self, template_state: "State", cmd: Command) -> "State":
+        """Create a new state instance from a template state and command.
+        
+        This method eliminates code duplication across state transitions.
+        """
+        # Create NEW instance instead of using template
+        next_state = self.copy()
+        next_state.state = template_state.state
+        next_state.is_rest_state = template_state.is_rest_state
+        next_state.rest_duration_ms = template_state.rest_duration_ms
+        next_state.transitions = template_state.transitions.copy()
+        
+        # Create NEW Graphics object with correct state_name
+        from .GraphicsFactory import GraphicsFactory
+        
+        # Construct correct sprites folder path for target state
+        correct_sprites_folder = construct_sprites_path_for_state(
+            template_state.graphics.sprites_folder, 
+            template_state.state
+        )
+        
+        next_state.graphics = GraphicsFactory.create(
+            correct_sprites_folder,  # Use corrected sprites folder
+            {},  # Empty config - use defaults
+            template_state.graphics.cell_size,  # Use same cell size
+            template_state.state  # CRITICAL: Pass the correct state name!
+        )
+        
+        # CRITICAL: Copy current physics state to the next state
+        if hasattr(self.physics, 'current_cell'):
+            next_state.physics.current_cell = self.physics.current_cell
+            next_state.physics.target_cell = self.physics.target_cell
+        
+        next_state.reset(cmd)
+        return next_state
+
     def reset(self, cmd: Command):
         """Reset the state with a new command."""
         self.current_command = cmd
@@ -89,37 +125,7 @@ class State:
             
         if cmd.type in self.transitions:
             template_state = self.transitions[cmd.type]
-            
-            # CRITICAL: Create NEW instance instead of using template
-            next_state = self.copy()
-            next_state.state = template_state.state
-            next_state.is_rest_state = template_state.is_rest_state
-            next_state.rest_duration_ms = template_state.rest_duration_ms
-            next_state.transitions = template_state.transitions.copy()
-            
-            # Create NEW Graphics object with correct state_name
-            from .GraphicsFactory import GraphicsFactory
-            
-            # Construct correct sprites folder path for target state
-            correct_sprites_folder = construct_sprites_path_for_state(
-                template_state.graphics.sprites_folder, 
-                template_state.state
-            )
-            
-            next_state.graphics = GraphicsFactory.create(
-                correct_sprites_folder,  # Use corrected sprites folder
-                {},  # Empty config - use defaults
-                template_state.graphics.cell_size,  # Use same cell size
-                template_state.state  # CRITICAL: Pass the correct state name!
-            )
-            
-            # CRITICAL: Copy current physics state to the next state
-            if hasattr(self.physics, 'current_cell'):
-                next_state.physics.current_cell = self.physics.current_cell
-                next_state.physics.target_cell = self.physics.target_cell
-            
-            next_state.reset(cmd)
-            return next_state
+            return self._create_transition_state(template_state, cmd)
         else:
             return self
 
@@ -131,77 +137,15 @@ class State:
         # Check if movement was completed and we should transition
         if movement_complete and "complete" in self.transitions:
             template_state = self.transitions["complete"]
-            
-            # CRITICAL: Create NEW instance instead of using template
-            next_state = self.copy()
-            next_state.state = template_state.state
-            next_state.is_rest_state = template_state.is_rest_state
-            next_state.rest_duration_ms = template_state.rest_duration_ms
-            next_state.transitions = template_state.transitions.copy()
-            
-            # Create NEW Graphics object with correct state_name
-            from .GraphicsFactory import GraphicsFactory
-            
-            # Construct correct sprites folder path for target state
-            correct_sprites_folder = construct_sprites_path_for_state(
-                template_state.graphics.sprites_folder, 
-                template_state.state
-            )
-            
-            next_state.graphics = GraphicsFactory.create(
-                correct_sprites_folder,  # Use corrected sprites folder
-                {},  # Empty config - use defaults
-                template_state.graphics.cell_size,  # Use same cell size
-                template_state.state  # CRITICAL: Pass the correct state name!
-            )
-            
-            # CRITICAL: Copy current physics state to the next state
-            if hasattr(self.physics, 'current_cell'):
-                next_state.physics.current_cell = self.physics.current_cell
-                next_state.physics.target_cell = self.physics.target_cell
-            
-            # Create a completion command
             completion_cmd = Command(now_ms, "", "complete", [])
-            next_state.reset(completion_cmd)
-            return next_state
+            return self._create_transition_state(template_state, completion_cmd)
 
         # Check for automatic transitions (like rest state expiring)
         if self.is_rest_state and self.can_transition(now_ms):
             if "timeout" in self.transitions:
                 template_state = self.transitions["timeout"]
-                
-                # CRITICAL: Create NEW instance instead of using template
-                next_state = self.copy()
-                next_state.state = template_state.state
-                next_state.is_rest_state = template_state.is_rest_state
-                next_state.rest_duration_ms = template_state.rest_duration_ms
-                next_state.transitions = template_state.transitions.copy()
-                
-                # Create NEW Graphics object with correct state_name
-                from .GraphicsFactory import GraphicsFactory
-                
-                # Construct correct sprites folder path for target state
-                correct_sprites_folder = construct_sprites_path_for_state(
-                    template_state.graphics.sprites_folder, 
-                    template_state.state
-                )
-                
-                next_state.graphics = GraphicsFactory.create(
-                    correct_sprites_folder,  # Use corrected sprites folder
-                    {},  # Empty config - use defaults
-                    template_state.graphics.cell_size,  # Use same cell size
-                    template_state.state  # CRITICAL: Pass the correct state name!
-                )
-                
-                # CRITICAL: Copy current physics state to the next state
-                if hasattr(self.physics, 'current_cell'):
-                    next_state.physics.current_cell = self.physics.current_cell
-                    next_state.physics.target_cell = self.physics.target_cell
-                
-                # Create a timeout command for the transition
                 timeout_cmd = Command(now_ms, "", "timeout", [])
-                next_state.reset(timeout_cmd)
-                return next_state
+                return self._create_transition_state(template_state, timeout_cmd)
         
         # Auto-completion checks
         if self.state == "move":

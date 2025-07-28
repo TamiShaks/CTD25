@@ -46,6 +46,18 @@ class Command:
             params=[]
         )
     
+    @classmethod
+    def create_promotion_command(cls, timestamp: int, piece_id: str, 
+                               from_cell: Tuple[int, int], to_cell: Tuple[int, int], 
+                               promotion_piece: str) -> "Command":
+        """Factory method for creating pawn promotion commands."""
+        return cls(
+            timestamp=timestamp,
+            piece_id=piece_id,
+            type="Promotion",
+            params=[from_cell, to_cell, promotion_piece]
+        )
+    
     def get_source_cell(self) -> Optional[Tuple[int, int]]:
         """Get the source cell from move parameters."""
         if len(self.params) >= 1 and isinstance(self.params[0], tuple):

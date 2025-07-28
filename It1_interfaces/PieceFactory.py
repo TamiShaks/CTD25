@@ -83,10 +83,13 @@ class PieceFactory:
                     # Configure rest states
                     if state_name == "long_rest":
                         state.is_rest_state = True
-                        state.rest_duration_ms = 2000  # 2 seconds
+                        state.rest_duration_ms = 3000  # 3 seconds
                     elif state_name == "short_rest":
                         state.is_rest_state = True
-                        state.rest_duration_ms = 1000  # 1 second
+                        state.rest_duration_ms = 2000  # 2 seconds
+                    elif state_name == "jump":
+                        state.is_rest_state = True
+                        state.rest_duration_ms = 1500  # 1.5 seconds for jump animation
                     
                     states[state_name] = state
                     # Debugging: Verify state creation
@@ -144,10 +147,10 @@ class PieceFactory:
             # Configure special properties
             if state_name == "long_rest":
                 state.is_rest_state = True
-                state.rest_duration_ms = 2000
+                state.rest_duration_ms = 3000  # 3 seconds
             elif state_name == "short_rest":
                 state.is_rest_state = True
-                state.rest_duration_ms = 1000
+                state.rest_duration_ms = 2000  # 2 seconds
             
             states[state_name] = state
             # Debugging: Verify state creation
@@ -181,8 +184,10 @@ class PieceFactory:
         if "jump" in states:
             if "short_rest" in states:
                 states["jump"].set_transition("complete", states["short_rest"])
+                states["jump"].set_transition("timeout", states["short_rest"])  # Add timeout transition
             elif "idle" in states:
                 states["jump"].set_transition("complete", states["idle"])
+                states["jump"].set_transition("timeout", states["idle"])  # Add timeout transition
         
         # Rest state timeout transitions
         if "long_rest" in states and "idle" in states:

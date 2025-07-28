@@ -2,6 +2,7 @@ from .Board import Board
 from .Command import Command
 from .State import State
 import cv2
+import numpy as np
 
 class Piece:
     def __init__(self, piece_id: str, init_state: State, piece_type: str):
@@ -104,7 +105,6 @@ class Piece:
             remaining_cooldown = self.cooldown_duration - (now_ms - self.last_action_time)
             if remaining_cooldown > 0:
                 cooldown_ratio = remaining_cooldown / self.cooldown_duration
-                import numpy as np
                 overlay_height = int(board.cell_H_pix * cooldown_ratio)
                 if overlay_height > 0 and board.img.img is not None:
                     h, w = board.img.img.shape[:2]

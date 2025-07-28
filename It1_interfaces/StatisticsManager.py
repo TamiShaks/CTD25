@@ -81,6 +81,30 @@ class StatisticsManager:
         moving_pieces = len([p for p in pieces.values() if p.current_state.physics.is_moving])
         idle_pieces = len([p for p in pieces.values() if p.current_state.state == "idle"])
         
+        # Count pieces by state
+        state_counts = {}
+        for piece in pieces.values():
+            state = piece.current_state.state
+            if state not in state_counts:
+                state_counts[state] = 0
+            state_counts[state] += 1
+        
         print(f"👑 Kings: White {white_kings}, Black {black_kings}")
         print(f"🏃 Moving Pieces: {moving_pieces}")
         print(f"💤 Idle Pieces: {idle_pieces}")
+        
+        # Show state breakdown
+        print(f"📊 States: ", end="")
+        for state, count in state_counts.items():
+            if state == "jump":
+                print(f"🦘{state}:{count} ", end="")
+            elif state == "short_rest":
+                print(f"😴{state}:{count} ", end="")
+            elif state == "long_rest":
+                print(f"💤{state}:{count} ", end="")
+            else:
+                print(f"{state}:{count} ", end="")
+        print()  # New line
+        
+        # Show controls reminder
+        print("🎮 Controls: TAB=stats, ESC=quit")

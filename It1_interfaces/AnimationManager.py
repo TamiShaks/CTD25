@@ -9,14 +9,14 @@ class AnimationManager:
     def update(self, event_type, data):
         if event_type == GAME_STARTED:
             self.game_state = "playing"
-            game_time = data.get("time", 0)
+            game_time = data.get("time", 0) if data else 0
             
             # You could add startup animations here
             # self.add_game_start_animation()
             
         elif event_type == GAME_ENDED:
             self.game_state = "ended"
-            game_time = data.get("time", 0)
+            game_time = data.get("time", 0) if data else 0
             
             # You could add ending animations here
             # self.add_game_end_animation()

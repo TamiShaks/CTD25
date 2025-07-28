@@ -34,6 +34,30 @@ class ChessRulesValidator:
             
         return True
     
+    def is_pawn_promotion(self, piece, target_pos):
+        """
+        Check if a pawn move results in promotion.
+        
+        Args:
+            piece: The pawn piece
+            target_pos: Target position tuple (row, col)
+            
+        Returns:
+            bool: True if this move promotes the pawn
+        """
+        if piece.piece_type != "P":
+            return False
+            
+        # White pawns promote when reaching row 0 (top of board)
+        if piece.color == "White" and target_pos[0] == 0:
+            return True
+            
+        # Black pawns promote when reaching row 7 (bottom of board) 
+        if piece.color == "Black" and target_pos[0] == 7:
+            return True
+            
+        return False
+    
     def _is_valid_pawn_move(self, pawn, start_pos, target_pos, target_piece):
         """Check if pawn move is valid according to chess rules."""
         if pawn.piece_type != "P":

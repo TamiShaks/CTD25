@@ -1,6 +1,25 @@
-# 🥋 Kung Fu Chess - Real-Time Chess Game
+# 🥋 Kung Fu Chess - Real-Time Chess## 🎮 Controls
 
-**Kung Fu Chess** is a real-time, two-player chess-inspired game where both players can move simultaneously — no turns, just action!
+| Player   | Movement       | Select/Move/Jump |
+|----------|----------------|------------------|
+| Player A | Arrow Keys     | Enter            |
+| Player B | W A S D        | Spacebar         |
+
+### 📊 System Controls:
+- **TAB**: Show live game statistics  
+- **ESC**: Quit game
+
+### 📱 Visual Interface:
+- **Side Panels**: Show real-time player info, scores, and recent moves
+- **Game Board**: Central chess board with piece animations
+
+## 🔄 Game Rules
+
+- Each player moves a **selection cursor** across the board
+- Press the action key **on your piece** then **on a target square** → Move (3s cooldown)
+- Press the action key **on your piece** then **on the same piece again** → Jump in place (2s cooldown)
+- While on cooldown, the piece is shown with a visual overlay (blue square that fades)
+- Win conditions (e.g., king capture) to be added in future versionsg Fu Chess** is a real-time, two-player chess-inspired game where both players can move simultaneously — no turns, just action!
 
 This project was built using Python and OpenCV, with a focus on timing, input handling, and visual feedback for game states.
 
@@ -79,5 +98,5 @@ run_game.bat
 
 ## 👩‍💻 Built By
 
-**Tamar**  
+**Gitty Burstein**  
 Final project for **Kamatech Bootcamp 2025**
