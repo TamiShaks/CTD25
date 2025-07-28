@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-🏆 ScoreManager Compact
+ ScoreManager Compact
 """
 from It1_interfaces.EventTypes import MOVE_DONE, PIECE_CAPTURED
 

@@ -41,12 +41,12 @@ def main():
     board_img = Img()
     try:
         board_img.read(pathlib.Path("board.png"), size=(512, 512))
-        print("✅ Board image loaded successfully!")
+        print("Board image loaded successfully!")
     except Exception as e:
-        print(f"⚠️ Error loading board image: {e}")
+        print(f"Error loading board image: {e}")
     
     if board_img.img is None:
-        print("❌ Failed to load board.png")
+        print("Failed to load board.png")
         exit(1)
 
     # Initialize the board

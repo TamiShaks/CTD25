@@ -38,7 +38,7 @@ def test_promotion_detection():
     
     for piece, target_pos, expected, description in test_cases:
         result = validator.is_pawn_promotion(piece, target_pos)
-        status = "✅" if result == expected else "❌"
+        status = "PASS" if result == expected else "FAIL"
         print(f"  {status} {description}: {result}")
     
     print()
@@ -56,11 +56,11 @@ def test_promotion_command():
         promotion_piece="Q"
     )
     
-    print(f"  ✅ Command type: {cmd.type}")
-    print(f"  ✅ Piece ID: {cmd.piece_id}")
-    print(f"  ✅ From: {cmd.params[0]}")
-    print(f"  ✅ To: {cmd.params[1]}")
-    print(f"  ✅ Promotion: {cmd.params[2]}")
+    print(f"  [+] Command type: {cmd.type}")
+    print(f"  [+] Piece ID: {cmd.piece_id}")
+    print(f"  [+] From: {cmd.params[0]}")
+    print(f"  [+] To: {cmd.params[1]}")
+    print(f"  [+] Promotion: {cmd.params[2]}")
     print()
 
 def test_promotion_ui_mock():
@@ -77,15 +77,15 @@ def test_promotion_ui_mock():
     
     # Test piece names
     piece_names = ui.piece_names
-    print(f"  ✅ Queen: {piece_names['Q']}")
-    print(f"  ✅ Rook: {piece_names['R']}")
-    print(f"  ✅ Bishop: {piece_names['B']}")
-    print(f"  ✅ Knight: {piece_names['N']}")
+    print(f"  [+] Queen: {piece_names['Q']}")
+    print(f"  [+] Rook: {piece_names['R']}")
+    print(f"  [+] Bishop: {piece_names['B']}")
+    print(f"  [+] Knight: {piece_names['N']}")
     
     # Test instructions
     instructions = ui.instructions
-    print(f"  ✅ Player A: {instructions['A']}")
-    print(f"  ✅ Player B: {instructions['B']}")
+    print(f"  [+] Player A: {instructions['A']}")
+    print(f"  [+] Player B: {instructions['B']}")
     
     pygame.quit()
     print()

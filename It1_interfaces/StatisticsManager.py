@@ -16,8 +16,8 @@ class StatisticsManager:
         print("="*60)
         
         game_duration = time.time() - start_time
-        print(f"⏱️  Game Duration: {game_duration:.1f} seconds")
-        print(f"🎯 Total Pieces Remaining: {len(pieces)}")
+        print(f"  Game Duration: {game_duration:.1f} seconds")
+        print(f" Total Pieces Remaining: {len(pieces)}")
         
         # Count pieces by color and type
         self.print_piece_counts(pieces)
@@ -26,11 +26,11 @@ class StatisticsManager:
     def display_live_statistics(self, pieces: Dict, start_time: float):
         """Display live game statistics during gameplay."""
         print("\n" + "="*50)
-        print("📊 LIVE GAME STATISTICS 📊")
+        print(" LIVE GAME STATISTICS ")
         print("="*50)
         
         game_duration = time.time() - start_time
-        print(f"⏱️  Game Time: {game_duration:.1f}s")
+        print(f"  Game Time: {game_duration:.1f}s")
         
         # Count pieces and states
         self.print_live_counts(pieces)
@@ -47,8 +47,8 @@ class StatisticsManager:
         """Print piece counts by color and type."""
         white_pieces, black_pieces = self._count_pieces_by_color(pieces)
         
-        print(f"⚪ White Pieces: {white_pieces}")
-        print(f"⚫ Black Pieces: {black_pieces}")
+        print(f" White Pieces: {white_pieces}")
+        print(f" Black Pieces: {black_pieces}")
         
         # Count by type
         piece_counts = {}
@@ -60,7 +60,7 @@ class StatisticsManager:
                 if hasattr(piece, 'color'):
                     piece_counts[piece_type][piece.color] += 1
         
-        print("\n📊 Remaining Pieces by Type:")
+        print("\n Remaining Pieces by Type:")
         piece_names = {"P": "Pawns", "R": "Rooks", "N": "Knights", "B": "Bishops", "Q": "Queens", "K": "Kings"}
         for piece_type, counts in piece_counts.items():
             name = piece_names.get(piece_type, f"Type {piece_type}")
@@ -70,8 +70,8 @@ class StatisticsManager:
         """Print live piece and state counts."""
         white_pieces, black_pieces = self._count_pieces_by_color(pieces)
         
-        print(f"⚪ White Pieces: {white_pieces}")
-        print(f"⚫ Black Pieces: {black_pieces}")
+        print(f" White Pieces: {white_pieces}")
+        print(f" Black Pieces: {black_pieces}")
         
         # Count kings and states
         kings = [p for p in pieces.values() if p.piece_type == "K"]
@@ -89,22 +89,22 @@ class StatisticsManager:
                 state_counts[state] = 0
             state_counts[state] += 1
         
-        print(f"👑 Kings: White {white_kings}, Black {black_kings}")
-        print(f"🏃 Moving Pieces: {moving_pieces}")
-        print(f"💤 Idle Pieces: {idle_pieces}")
+        print(f" Kings: White {white_kings}, Black {black_kings}")
+        print(f" Moving Pieces: {moving_pieces}")
+        print(f" Idle Pieces: {idle_pieces}")
         
         # Show state breakdown
-        print(f"📊 States: ", end="")
+        print(f" States: ", end="")
         for state, count in state_counts.items():
             if state == "jump":
-                print(f"🦘{state}:{count} ", end="")
+                print(f"{state}:{count} ", end="")
             elif state == "short_rest":
-                print(f"😴{state}:{count} ", end="")
+                print(f"{state}:{count} ", end="")
             elif state == "long_rest":
-                print(f"💤{state}:{count} ", end="")
+                print(f"{state}:{count} ", end="")
             else:
                 print(f"{state}:{count} ", end="")
         print()  # New line
         
         # Show controls reminder
-        print("🎮 Controls: TAB=stats, ESC=quit")
+        print(" Controls: TAB=stats, ESC=quit")

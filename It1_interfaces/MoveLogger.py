@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-📝 MoveLogger - רישום מהלכים במשחק
-מנהל רישום כל המהלכים במשחק ומציג אותם בממשק המשתמש
+# MoveLogger - Game Move Recording
+# Manages and displays all game moves in the user interface
 """
 import time
 from typing import Dict, List, Optional
 
 
 class MoveLogger:
-"""מחלקה לרישום moves במשחק"""
+    """מחלקה לרישום moves במשחק"""
     
     def __init__(self):
-"""initialization מנהל רישום המהלכים"""
+        """initialization מנהל רישום המהלכים"""
         self.move_history: List[Dict] = []
         self.game_start_time = time.time()
         self.player_moves = {"A": [], "B": []}

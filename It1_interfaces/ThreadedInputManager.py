@@ -95,7 +95,7 @@ class ThreadedInputManager(threading.Thread):
                                 "options": self.promotion_options
                             })
                         
-                        print(f"🎯 Player {player}: Pawn promotion! Select your piece.")
+                        print(f" Player {player}: Pawn promotion! Select your piece.")
                         break
         
     def run(self):
@@ -157,7 +157,7 @@ class ThreadedInputManager(threading.Thread):
                             # Player action
                             # Check if player is in promotion mode
                             if self.promotion_state[player_or_system]['active']:
-                                print(f"🔥 PROMOTION DEBUG: Player {player_or_system} pressed {action}")
+                                print(f" PROMOTION DEBUG: Player {player_or_system} pressed {action}")
                                 if action in ['left', 'right']:
                                     self._handle_promotion_navigation(player_or_system, action)
                                 elif action == 'select':
@@ -212,11 +212,11 @@ class ThreadedInputManager(threading.Thread):
                 if p_pos == pos and hasattr(piece, 'color') and piece.color == player_color:
                     self.selection[player]['selected'] = piece
                     if self.debug:
-                        print(f"🎯 Player {player} selected {piece.piece_id} at {pos}")
+                        print(f" Player {player} selected {piece.piece_id} at {pos}")
                     break
             else:
                 if self.debug:
-                    print(f"❌ No {player_color} piece at {pos}")
+                    print(f" No {player_color} piece at {pos}")
         else:
             # Second keypress: try to move selected piece to cursor position
             start_pos = tuple(selected.current_state.physics.current_cell)
@@ -262,13 +262,13 @@ class ThreadedInputManager(threading.Thread):
                         self.promotion_state[player]['target_pos'] = pos
                         self.promotion_state[player]['pending_since'] = now
                         
-                        print(f"🎯 Player {player}: Pawn promotion pending - waiting for movement to complete")
+                        print(f" Player {player}: Pawn promotion pending - waiting for movement to complete")
                     else:
                         # Regular move
                         now = self._game_time_func()
                         cmd = Command.create_move_command(now, selected.piece_id, start_pos, pos)
                         self.user_input_queue.put(cmd)
-                        print(f"✅ Player {player}: {selected.piece_id} {start_pos} → {pos}")  # Always show successful moves
+                        print(f" Player {player}: {selected.piece_id} {start_pos} → {pos}")  # Always show successful moves
                 else:
                     # Send INVALID_MOVE event to trigger fail sound
                     if self.event_bus:
@@ -280,7 +280,7 @@ class ThreadedInputManager(threading.Thread):
                             "reason": "Invalid chess rule"
                         })
                     if self.debug:
-                        print(f"❌ Invalid chess rule: {selected.piece_id} {start_pos} → {pos}")
+                        print(f" Invalid chess rule: {selected.piece_id} {start_pos} → {pos}")
             else:
                 # Send INVALID_MOVE event to trigger fail sound
                 if self.event_bus:
@@ -292,7 +292,7 @@ class ThreadedInputManager(threading.Thread):
                         "reason": "Not a valid move"
                     })
                 if self.debug:
-                    print(f"⚠️ Not a valid move: {selected.piece_id} {start_pos} → {pos}")
+                    print(f"Not a valid move: {selected.piece_id} {start_pos} → {pos}")
             self.selection[player]['selected'] = None
     
     def get_selection(self, player: str) -> Dict:
@@ -308,16 +308,16 @@ class ThreadedInputManager(threading.Thread):
         if not self.promotion_state[player]['active']:
             return
             
-        print(f"🔥 PROMOTION NAV: Player {player} direction {direction}, current={self.promotion_state[player]['menu_selection']}")
+        print(f" PROMOTION NAV: Player {player} direction {direction}, current={self.promotion_state[player]['menu_selection']}")
             
         if direction == 'left' and self.promotion_state[player]['menu_selection'] > 0:
             self.promotion_state[player]['menu_selection'] -= 1
-            print(f"🎯 Player {player}: Promotion menu ← {self.promotion_options[self.promotion_state[player]['menu_selection']]}")
+            print(f" Player {player}: Promotion menu ← {self.promotion_options[self.promotion_state[player]['menu_selection']]}")
         elif direction == 'right' and self.promotion_state[player]['menu_selection'] < len(self.promotion_options) - 1:
             self.promotion_state[player]['menu_selection'] += 1
-            print(f"🎯 Player {player}: Promotion menu → {self.promotion_options[self.promotion_state[player]['menu_selection']]}")
+            print(f" Player {player}: Promotion menu → {self.promotion_options[self.promotion_state[player]['menu_selection']]}")
         else:
-            print(f"🔥 PROMOTION NAV: No movement possible - at edge or invalid direction")
+            print(f" PROMOTION NAV: No movement possible - at edge or invalid direction")
     
     def _confirm_promotion(self, player: str):
         """Confirm promotion choice and execute the move."""
@@ -334,7 +334,7 @@ class ThreadedInputManager(threading.Thread):
         cmd = Command.create_promotion_command(now, selected_piece.piece_id, start_pos, target_pos, promotion_choice)
         self.user_input_queue.put(cmd)
         
-        print(f"🎉 Player {player}: Promoted {selected_piece.piece_id} to {promotion_choice} at {target_pos}")
+        print(f" Player {player}: Promoted {selected_piece.piece_id} to {promotion_choice} at {target_pos}")
         
         # Reset promotion state
         self.promotion_state[player]['active'] = False
