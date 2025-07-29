@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
- MoveLogger Compact
+📝 MoveLogger Compact
 """
 import time
 from typing import Dict, List
@@ -59,7 +59,7 @@ class MoveLogger:
     
     def log_move_from_console(self, console_line: str):
         """Log move from console"""
-        # Parse line like: " Player A: PW60 (6, 0) → (4, 0)"
+        # Parse line like: "✅ Player A: PW60 (6, 0) → (4, 0)"
         if "Player A:" in console_line or "Player B:" in console_line:
             try:
                 # Extract data

@@ -97,7 +97,7 @@ class Piece:
             rest_duration_ms=self.current_state.rest_duration_ms,
             now_ms=now_ms
         )
-        x, y = self.current_state.physics.get_pos(now_ms)  # Pass now_ms to get current position
+        x, y = self.current_state.physics.get_pos(now_ms)  # ❗ העברת now_ms
 
         try:
             sprite.draw_on(board.img, x, y)
